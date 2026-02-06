@@ -1,3 +1,16 @@
+--[[
+
+ __   __     ______     ______     ______     __         ______     ______     ______    
+/\ \ / /    /\  ___\   /\  ___\   /\  == \   /\ \       /\  __ \   /\  ___\   /\  ___\   
+\ \ \'/     \ \  __\   \ \ \____  \ \  __<   \ \ \____  \ \  __ \  \ \ \__ \  \ \  __\   
+ \ \__|      \ \_____\  \ \_____\  \ \_\ \_\  \ \_____\  \ \_\ \_\  \ \_____\  \ \_____\ 
+  \/_/        \/_____/   \/_____/   \/_/ /_/   \/_____/   \/_/\/_/   \/_____/   \/_____/ 
+
+                V O I D F R A M E   L I B R A R Y  [COMPAT]
+           Universal Executor Support Version
+           
+--]]
+
 local VoidFrame = {}
 VoidFrame.__index = VoidFrame
 
@@ -6,21 +19,48 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local TextService = game:GetService("TextService")
 
+-- Executor Compatibility Layer
+local function GetCoreGui()
+    -- Try multiple methods for different executors
+    local success, result = pcall(function()
+        return game:GetService("CoreGui")
+    end)
+    if success and result then
+        return result
+    end
+    
+    -- Fallback to PlayerGui
+    local player = Players.LocalPlayer
+    if player then
+        return player:WaitForChild("PlayerGui")
+    end
+    
+    return nil
+end
+
+local CoreGui = GetCoreGui()
+if not CoreGui then
+    warn("VoidFrame: Could not find valid GUI container")
+    return {}
+end
+
+-- Check if we have required functions
+local hasFileFunctions = (writefile ~= nil and readfile ~= nil and isfile ~= nil)
+local hasHttpService = pcall(function() HttpService:JSONEncode({}) end)
+
 -- Configuration System
 VoidFrame.Config = {
-    AutoSave = true,
+    AutoSave = false, -- Disabled by default for compatibility
     SaveInterval = 30,
     ConfigFolder = "VoidFrame_Configs",
     DefaultConfigName = "Default"
 }
 
--- Retro Theme System - Fully Customizable
+-- Retro Theme System
 VoidFrame.Themes = {
-    -- Classic Terminal Green (Default)
     RetroGreen = {
         Name = "RetroGreen",
         Background = Color3.fromRGB(0, 0, 0),
@@ -41,15 +81,14 @@ VoidFrame.Themes = {
         Font = Enum.Font.Arcade,
         MonoFont = Enum.Font.Code,
         PixelFont = Enum.Font.Gotham,
-        CornerRadius = 0, -- Sharp corners for retro feel
+        CornerRadius = 0,
         BorderSize = 2,
-        BorderStyle = "Block", -- Block, Line, Double, Thick
+        BorderStyle = "Block",
         Shadow = false,
         CRT = true,
         Scanlines = true
     },
     
-    -- Amber Monitor
     RetroAmber = {
         Name = "RetroAmber",
         Background = Color3.fromRGB(10, 8, 0),
@@ -78,7 +117,6 @@ VoidFrame.Themes = {
         Scanlines = true
     },
     
-    -- Phosphor Blue
     RetroBlue = {
         Name = "RetroBlue",
         Background = Color3.fromRGB(0, 0, 10),
@@ -107,7 +145,6 @@ VoidFrame.Themes = {
         Scanlines = true
     },
     
-    -- Monochrome (B&W)
     RetroMono = {
         Name = "RetroMono",
         Background = Color3.fromRGB(0, 0, 0),
@@ -136,7 +173,6 @@ VoidFrame.Themes = {
         Scanlines = false
     },
     
-    -- Matrix/Deep Green
     Matrix = {
         Name = "Matrix",
         Background = Color3.fromRGB(0, 5, 0),
@@ -166,27 +202,38 @@ VoidFrame.Themes = {
     }
 }
 
--- Current Theme
 VoidFrame.CurrentTheme = VoidFrame.Themes.RetroGreen
 
 -- Global Storage
 local Windows = {}
-local Notifications = {}
-local Configs = {}
-local Draggables = {}
 local ConnectionBin = {}
 
 -- Utility Functions
 local function Create(className, properties)
-    local obj = Instance.new(className)
-    for k, v in pairs(properties or {}) do
+    local success, obj = pcall(function()
+        return Instance.new(className)
+    end)
+    
+    if not success or not obj then
+        warn("VoidFrame: Failed to create " .. className)
+        return nil
+    end
+    
+    properties = properties or {}
+    for k, v in pairs(properties) do
         if k ~= "Parent" then
-            obj[k] = v
+            pcall(function()
+                obj[k] = v
+            end)
         end
     end
-    if properties and properties.Parent then
-        obj.Parent = properties.Parent
+    
+    if properties.Parent then
+        pcall(function()
+            obj.Parent = properties.Parent
+        end)
     end
+    
     return obj
 end
 
@@ -195,224 +242,165 @@ local function MakeDraggable(obj, handle)
     local dragging = false
     local dragInput, dragStart, startPos
     
-    local connections = {}
+    local success = pcall(function()
+        local inputBegan = handle.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+               input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                dragStart = input.Position
+                startPos = obj.Position
+            end
+        end)
+        
+        local inputChanged = handle.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement or
+               input.UserInputType == Enum.UserInputType.Touch then
+                dragInput = input
+            end
+        end)
+        
+        local globalChanged = UserInputService.InputChanged:Connect(function(input)
+            if input == dragInput and dragging then
+                local delta = input.Position - dragStart
+                obj.Position = UDim2.new(
+                    startPos.X.Scale, startPos.X.Offset + delta.X,
+                    startPos.Y.Scale, startPos.Y.Offset + delta.Y
+                )
+            end
+        end)
+        
+        local inputEnded = UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or
+               input.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end)
+        
+        table.insert(ConnectionBin, inputBegan)
+        table.insert(ConnectionBin, inputChanged)
+        table.insert(ConnectionBin, globalChanged)
+        table.insert(ConnectionBin, inputEnded)
+    end)
     
-    table.insert(connections, handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = obj.Position
-        end
-    end))
-    
-    table.insert(connections, handle.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end))
-    
-    table.insert(connections, UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            obj.Position = UDim2.new(
-                startPos.X.Scale, startPos.X.Offset + delta.X,
-                startPos.Y.Scale, startPos.Y.Offset + delta.Y
-            )
-        end
-    end))
-    
-    table.insert(connections, UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end))
-    
-    Draggables[obj] = connections
-    return connections
-end
-
-local function CleanupDraggable(obj)
-    if Draggables[obj] then
-        for _, conn in pairs(Draggables[obj]) do
-            if conn then conn:Disconnect() end
-        end
-        Draggables[obj] = nil
-    end
+    return success
 end
 
 local function ApplyBorder(obj, theme, customColor)
+    if not obj or not theme then return end
+    
     local color = customColor or theme.StrokeColor
     local size = theme.BorderSize or 2
     
-    if theme.BorderStyle == "Block" or theme.BorderStyle == "Thick" then
-        -- Blocky pixel border
-        for _, side in pairs({"Top", "Bottom", "Left", "Right"}) do
-            local border = Create("Frame", {
-                Name = "Border_" .. side,
-                BackgroundColor3 = color,
-                BorderSizePixel = 0,
+    -- Remove existing borders
+    for _, child in pairs(obj:GetChildren()) do
+        if child.Name:sub(1, 7) == "Border_" or child:IsA("UIStroke") then
+            child:Destroy()
+        end
+    end
+    
+    pcall(function()
+        if theme.BorderStyle == "Block" or theme.BorderStyle == "Thick" then
+            local sides = {"Top", "Bottom", "Left", "Right"}
+            for _, side in pairs(sides) do
+                local border = Create("Frame", {
+                    Name = "Border_" .. side,
+                    BackgroundColor3 = color,
+                    BorderSizePixel = 0,
+                    Parent = obj
+                })
+                
+                if border then
+                    if side == "Top" then
+                        border.Size = UDim2.new(1, 0, 0, size)
+                        border.Position = UDim2.new(0, 0, 0, 0)
+                    elseif side == "Bottom" then
+                        border.Size = UDim2.new(1, 0, 0, size)
+                        border.Position = UDim2.new(0, 0, 1, -size)
+                    elseif side == "Left" then
+                        border.Size = UDim2.new(0, size, 1, -size * 2)
+                        border.Position = UDim2.new(0, 0, 0, size)
+                    elseif side == "Right" then
+                        border.Size = UDim2.new(0, size, 1, -size * 2)
+                        border.Position = UDim2.new(1, -size, 0, size)
+                    end
+                end
+            end
+        else
+            local stroke = Create("UIStroke", {
+                Color = color,
+                Thickness = size,
+                Transparency = 0.2,
                 Parent = obj
             })
-            
-            if side == "Top" then
-                border.Size = UDim2.new(1, 0, 0, size)
-                border.Position = UDim2.new(0, 0, 0, 0)
-            elseif side == "Bottom" then
-                border.Size = UDim2.new(1, 0, 0, size)
-                border.Position = UDim2.new(0, 0, 1, -size)
-            elseif side == "Left" then
-                border.Size = UDim2.new(0, size, 1, -size * 2)
-                border.Position = UDim2.new(0, 0, 0, size)
-            elseif side == "Right" then
-                border.Size = UDim2.new(0, size, 1, -size * 2)
-                border.Position = UDim2.new(1, -size, 0, size)
-            end
-        end
-    else
-        -- Standard UIStroke for line styles
-        local stroke = Create("UIStroke", {
-            Color = color,
-            Thickness = size,
-            Transparency = 0.2,
-            Parent = obj
-        })
-    end
-end
-
-local function ApplyPixelStyle(obj, theme)
-    -- Sharp corners only
-    if obj:IsA("GuiObject") and theme.CornerRadius == 0 then
-        -- No corner radius for true pixel look
-        local existing = obj:FindFirstChildOfClass("UICorner")
-        if existing then existing:Destroy() end
-    end
-    
-    -- Apply border
-    ApplyBorder(obj, theme)
-end
-
-local function CreateShadow(obj, depth)
-    depth = depth or 4
-    local shadow = Create("Frame", {
-        Name = "Shadow",
-        Size = UDim2.new(1, 0, 1, 0),
-        Position = UDim2.new(0, depth, 0, depth),
-        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-        BackgroundTransparency = 0.7,
-        BorderSizePixel = 0,
-        ZIndex = obj.ZIndex - 1,
-        Parent = obj.Parent
-    })
-    shadow.LayoutOrder = obj.LayoutOrder - 1
-    return shadow
-end
-
-local function AddTooltip(obj, text, theme)
-    local tooltip = nil
-    local connection = nil
-    
-    obj.MouseEnter:Connect(function()
-        if not tooltip then
-            tooltip = Create("Frame", {
-                Name = "Tooltip",
-                Size = UDim2.new(0, 0, 0, 24),
-                AutomaticSize = Enum.AutomaticSize.X,
-                BackgroundColor3 = theme.Surface,
-                BorderSizePixel = 0,
-                ZIndex = 999999,
-                Parent = CoreGui
-            })
-            
-            ApplyBorder(tooltip, theme, theme.TextDim)
-            
-            local lbl = Create("TextLabel", {
-                Size = UDim2.new(0, 0, 1, 0),
-                AutomaticSize = Enum.AutomaticSize.X,
-                BackgroundTransparency = 1,
-                Text = " " .. text .. " ",
-                TextColor3 = theme.Text,
-                Font = theme.MonoFont,
-                TextSize = 12,
-                TextXAlignment = Enum.TextXAlignment.Center,
-                Parent = tooltip
-            })
-            
-            local absPos = obj.AbsolutePosition
-            tooltip.Position = UDim2.new(0, absPos.X, 0, absPos.Y - 28)
-        end
-        tooltip.Visible = true
-    end)
-    
-    obj.MouseLeave:Connect(function()
-        if tooltip then
-            tooltip:Destroy()
-            tooltip = nil
         end
     end)
-    
-    obj.Destroying:Connect(function()
-        if tooltip then tooltip:Destroy() end
-    end)
 end
 
--- Config Management System
+-- Config Manager (Memory-only for compatibility)
 VoidFrame.ConfigManager = {
     LoadedConfigs = {},
     
     SaveConfig = function(self, name, data)
-        local configName = name or VoidFrame.Config.DefaultConfigName
-        local encoded = HttpService:JSONEncode(data)
-        
-        -- Save to workspace folder or local storage
-        local folder = VoidFrame.Config.ConfigFolder
-        -- In real implementation, would use writefile/readfile
-        -- For now, store in memory
-        self.LoadedConfigs[configName] = encoded
-        
-        -- Notification
-        if VoidFrame.NotificationSystem then
-            VoidFrame.NotificationSystem:Notify("CONFIG", "Saved config: " .. configName, 2)
+        if not hasFileFunctions or not hasHttpService then
+            warn("VoidFrame: File functions not available. Config not saved.")
+            return false
         end
         
-        return true
+        local success = pcall(function()
+            local configName = name or VoidFrame.Config.DefaultConfigName
+            local encoded = HttpService:JSONEncode(data)
+            
+            if not isfile(VoidFrame.Config.ConfigFolder) then
+                -- Try to create folder (may fail on some executors)
+                pcall(makefolder, VoidFrame.Config.ConfigFolder)
+            end
+            
+            local path = VoidFrame.Config.ConfigFolder .. "/" .. configName .. ".json"
+            writefile(path, encoded)
+            
+            if VoidFrame.NotificationSystem then
+                VoidFrame.NotificationSystem:Notify("CONFIG", "Saved: " .. configName, 2)
+            end
+        end)
+        
+        return success
     end,
     
     LoadConfig = function(self, name)
-        local configName = name or VoidFrame.Config.DefaultConfigName
-        local encoded = self.LoadedConfigs[configName]
-        
-        if encoded then
-            local success, data = pcall(function()
-                return HttpService:JSONDecode(encoded)
-            end)
-            
-            if success then
-                return data
-            end
+        if not hasFileFunctions or not hasHttpService then
+            return nil
         end
-        return nil
-    end,
-    
-    DeleteConfig = function(self, name)
-        self.LoadedConfigs[name] = nil
-        return true
+        
+        local success, result = pcall(function()
+            local configName = name or VoidFrame.Config.DefaultConfigName
+            local path = VoidFrame.Config.ConfigFolder .. "/" .. configName .. ".json"
+            
+            if isfile(path) then
+                local encoded = readfile(path)
+                return HttpService:JSONDecode(encoded)
+            end
+            return nil
+        end)
+        
+        return success and result or nil
     end,
     
     ListConfigs = function(self)
-        local list = {}
-        for name, _ in pairs(self.LoadedConfigs) do
-            table.insert(list, name)
-        end
-        return list
-    end,
-    
-    AutoSaveLoop = function(self, windowData)
-        while VoidFrame.Config.AutoSave do
-            task.wait(VoidFrame.Config.SaveInterval)
-            if windowData and windowData.GetConfigData then
-                self:SaveConfig(nil, windowData:GetConfigData())
+        if not hasFileFunctions then return {} end
+        
+        local success, result = pcall(function()
+            local files = listfiles(VoidFrame.Config.ConfigFolder)
+            local configs = {}
+            for _, file in pairs(files) do
+                if file:match("%.json$") then
+                    local name = file:match("([^/\\]+)%.json$")
+                    if name then table.insert(configs, name) end
+                end
             end
-        end
+            return configs
+        end)
+        
+        return success and result or {}
     end
 }
 
@@ -420,10 +408,12 @@ VoidFrame.ConfigManager = {
 VoidFrame.NotificationSystem = {
     ActiveNotifications = {},
     MaxNotifications = 5,
+    Container = nil,
+    Screen = nil,
+    Theme = nil,
     
     Init = function(self, theme)
         if self.Container then return end
-        
         self.Theme = theme or VoidFrame.CurrentTheme
         
         self.Screen = Create("ScreenGui", {
@@ -434,6 +424,8 @@ VoidFrame.NotificationSystem = {
             Parent = CoreGui
         })
         
+        if not self.Screen then return end
+        
         self.Container = Create("Frame", {
             Size = UDim2.new(0, 420, 1, 0),
             Position = UDim2.new(1, -440, 0, 20),
@@ -441,7 +433,7 @@ VoidFrame.NotificationSystem = {
             Parent = self.Screen
         })
         
-        self.Layout = Create("UIListLayout", {
+        local layout = Create("UIListLayout", {
             Padding = UDim.new(0, 8),
             HorizontalAlignment = Enum.HorizontalAlignment.Right,
             VerticalAlignment = Enum.VerticalAlignment.Top,
@@ -455,8 +447,14 @@ VoidFrame.NotificationSystem = {
         duration = duration or 4
         local theme = self.Theme or VoidFrame.CurrentTheme
         
-        -- Sound effect (optional retro beep)
-        -- local sound = Create("Sound", {SoundId = "rbxassetid://...", Parent = CoreGui})
+        if not self.Container then
+            self:Init(theme)
+        end
+        
+        if not self.Container then
+            warn("VoidFrame: Notification container failed to initialize")
+            return nil
+        end
         
         local notif = Create("Frame", {
             Size = UDim2.new(0, 400, 0, 0),
@@ -466,6 +464,8 @@ VoidFrame.NotificationSystem = {
             LayoutOrder = -(#self.ActiveNotifications),
             Parent = self.Container
         })
+        
+        if not notif then return nil end
         
         ApplyBorder(notif, theme)
         
@@ -494,7 +494,7 @@ VoidFrame.NotificationSystem = {
             Size = UDim2.new(1, -20, 1, 0),
             Position = UDim2.new(0, 12, 0, 0),
             BackgroundTransparency = 1,
-            Text = "► " .. (title or "VOID"):upper(),
+            Text = "> " .. (title or "VOID"):upper(),
             TextColor3 = theme.Text,
             Font = theme.MonoFont,
             TextSize = 14,
@@ -534,13 +534,11 @@ VoidFrame.NotificationSystem = {
             Parent = msgContainer
         })
         
-        -- Calculate final size
-        local msgHeight = msgLbl.TextBounds.Y
+        local msgHeight = msgLbl and msgLbl.TextBounds and msgLbl.TextBounds.Y or 20
         notif.Size = UDim2.new(0, 400, 0, 36 + msgHeight + 10)
         
-        -- Close functionality
         local function close()
-            if notif.Parent then
+            if notif and notif.Parent then
                 notif:Destroy()
                 for i, n in pairs(self.ActiveNotifications) do
                     if n == notif then
@@ -551,14 +549,13 @@ VoidFrame.NotificationSystem = {
             end
         end
         
-        closeBtn.MouseButton1Click:Connect(close)
+        if closeBtn then
+            closeBtn.MouseButton1Click:Connect(close)
+        end
         
-        -- Auto close
         task.delay(duration, close)
-        
         table.insert(self.ActiveNotifications, 1, notif)
         
-        -- Remove old notifications if too many
         while #self.ActiveNotifications > self.MaxNotifications do
             local old = self.ActiveNotifications[#self.ActiveNotifications]
             if old and old.Parent then
@@ -580,16 +577,14 @@ VoidFrame.NotificationSystem = {
     end
 }
 
--- Advanced Components
+-- Component Registry
 local ComponentRegistry = {}
 
--- Toggle Component
 ComponentRegistry.Toggle = {
     Create = function(parent, config, theme, callback)
         local name = config.Name or "Toggle"
         local default = config.Default or false
         local flag = config.Flag or name:gsub("%s+", "_"):lower()
-        local tooltip = config.Tooltip
         
         local frame = Create("Frame", {
             Size = UDim2.new(1, -16, 0, 34),
@@ -598,6 +593,7 @@ ComponentRegistry.Toggle = {
             Parent = parent
         })
         
+        if not frame then return nil end
         ApplyBorder(frame, theme)
         
         local label = Create("TextLabel", {
@@ -634,8 +630,12 @@ ComponentRegistry.Toggle = {
         
         local function update(newValue)
             value = newValue
-            switch.BackgroundColor3 = value and theme.Accent or theme.AccentDarker
-            knob.Position = value and UDim2.new(1, -20, 0, 2) or UDim2.new(0, 2, 0, 2)
+            if switch then
+                switch.BackgroundColor3 = value and theme.Accent or theme.AccentDarker
+            end
+            if knob then
+                knob.Position = value and UDim2.new(1, -20, 0, 2) or UDim2.new(0, 2, 0, 2)
+            end
             if callback then callback(value) end
             return value
         end
@@ -647,11 +647,11 @@ ComponentRegistry.Toggle = {
             Parent = frame
         })
         
-        clickArea.MouseButton1Click:Connect(function()
-            update(not value)
-        end)
-        
-        if tooltip then AddTooltip(frame, tooltip, theme) end
+        if clickArea then
+            clickArea.MouseButton1Click:Connect(function()
+                update(not value)
+            end)
+        end
         
         return {
             Instance = frame,
@@ -662,7 +662,6 @@ ComponentRegistry.Toggle = {
     end
 }
 
--- Slider Component
 ComponentRegistry.Slider = {
     Create = function(parent, config, theme, callback)
         local name = config.Name or "Slider"
@@ -671,7 +670,6 @@ ComponentRegistry.Slider = {
         local default = config.Default or min
         local suffix = config.Suffix or ""
         local flag = config.Flag or name:gsub("%s+", "_"):lower()
-        local tooltip = config.Tooltip
         local decimals = config.Decimals or 0
         
         local frame = Create("Frame", {
@@ -681,6 +679,7 @@ ComponentRegistry.Slider = {
             Parent = parent
         })
         
+        if not frame then return nil end
         ApplyBorder(frame, theme)
         
         local label = Create("TextLabel", {
@@ -725,8 +724,10 @@ ComponentRegistry.Slider = {
         })
         
         local value = default
+        local dragging = false
         
         local function update(inputX)
+            if not track then return end
             local relX = math.clamp((inputX - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
             local newValue = min + (max - min) * relX
             
@@ -737,43 +738,52 @@ ComponentRegistry.Slider = {
             end
             
             value = newValue
-            fill.Size = UDim2.new(relX, 0, 1, 0)
-            valueLabel.Text = tostring(value) .. suffix
-            
+            if fill then
+                fill.Size = UDim2.new(relX, 0, 1, 0)
+            end
+            if valueLabel then
+                valueLabel.Text = tostring(value) .. suffix
+            end
             if callback then callback(value) end
-            return value
         end
         
-        local dragging = false
+        if track then
+            track.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or
+                   input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true
+                    update(input.Position.X)
+                end
+            end)
+            
+            track.InputChanged:Connect(function(input)
+                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or
+                                input.UserInputType == Enum.UserInputType.Touch) then
+                    update(input.Position.X)
+                end
+            end)
+        end
         
-        track.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = true
-                update(input.Position.X)
-            end
-        end)
-        
-        track.InputChanged:Connect(function(input)
-            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                update(input.Position.X)
-            end
-        end)
-        
-        UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local inputEnded = UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or
+               input.UserInputType == Enum.UserInputType.Touch then
                 dragging = false
             end
         end)
         
-        if tooltip then AddTooltip(frame, tooltip, theme) end
+        table.insert(ConnectionBin, inputEnded)
         
         return {
             Instance = frame,
             GetValue = function() return value end,
             SetValue = function(v)
                 value = math.clamp(v, min, max)
-                fill.Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
-                valueLabel.Text = tostring(value) .. suffix
+                if fill then
+                    fill.Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
+                end
+                if valueLabel then
+                    valueLabel.Text = tostring(value) .. suffix
+                end
                 if callback then callback(value) end
             end,
             Flag = flag
@@ -781,15 +791,12 @@ ComponentRegistry.Slider = {
     end
 }
 
--- Dropdown Component
 ComponentRegistry.Dropdown = {
     Create = function(parent, config, theme, callback)
         local name = config.Name or "Dropdown"
         local options = config.Options or {}
         local default = config.Default or options[1] or "None"
         local flag = config.Flag or name:gsub("%s+", "_"):lower()
-        local tooltip = config.Tooltip
-        local multi = config.Multi or false
         
         local frame = Create("Frame", {
             Size = UDim2.new(1, -16, 0, 38),
@@ -798,6 +805,7 @@ ComponentRegistry.Dropdown = {
             Parent = parent
         })
         
+        if not frame then return nil end
         ApplyBorder(frame, theme)
         
         local label = Create("TextLabel", {
@@ -844,7 +852,7 @@ ComponentRegistry.Dropdown = {
         
         local function closeDropdown()
             dropdownOpen = false
-            arrow.Text = "▼"
+            if arrow then arrow.Text = "▼" end
             if optionFrame then
                 optionFrame:Destroy()
                 optionFrame = nil
@@ -858,7 +866,7 @@ ComponentRegistry.Dropdown = {
             end
             
             dropdownOpen = true
-            arrow.Text = "▲"
+            if arrow then arrow.Text = "▲" end
             
             optionFrame = Create("Frame", {
                 Size = UDim2.new(1, 0, 0, math.min(#options * 28, 200)),
@@ -869,6 +877,7 @@ ComponentRegistry.Dropdown = {
                 Parent = btn
             })
             
+            if not optionFrame then return end
             ApplyBorder(optionFrame, theme)
             
             local scroll = Create("ScrollingFrame", {
@@ -894,35 +903,20 @@ ComponentRegistry.Dropdown = {
                     Parent = scroll
                 })
                 
-                optBtn.MouseButton1Click:Connect(function()
-                    selectedValue = option
-                    btn.Text = " " .. tostring(selectedValue) .. " "
-                    closeDropdown()
-                    if callback then callback(selectedValue) end
-                end)
+                if optBtn then
+                    optBtn.MouseButton1Click:Connect(function()
+                        selectedValue = option
+                        if btn then btn.Text = " " .. tostring(selectedValue) .. " " end
+                        closeDropdown()
+                        if callback then callback(selectedValue) end
+                    end)
+                end
             end
         end
         
-        btn.MouseButton1Click:Connect(openDropdown)
-        
-        -- Close when clicking elsewhere
-        UserInputService.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 and dropdownOpen then
-                local pos = UserInputService:GetMouseLocation()
-                local absPos = optionFrame and optionFrame.AbsolutePosition
-                local absSize = optionFrame and optionFrame.AbsoluteSize
-                
-                if absPos and (pos.X < absPos.X or pos.X > absPos.X + absSize.X or 
-                              pos.Y < absPos.Y or pos.Y > absPos.Y + absSize.Y) then
-                    if not (pos.X >= btn.AbsolutePosition.X and pos.X <= btn.AbsolutePosition.X + btn.AbsoluteSize.X and
-                            pos.Y >= btn.AbsolutePosition.Y and pos.Y <= btn.AbsolutePosition.Y + btn.AbsoluteSize.Y) then
-                        closeDropdown()
-                    end
-                end
-            end
-        end)
-        
-        if tooltip then AddTooltip(frame, tooltip, theme) end
+        if btn then
+            btn.MouseButton1Click:Connect(openDropdown)
+        end
         
         return {
             Instance = frame,
@@ -930,7 +924,7 @@ ComponentRegistry.Dropdown = {
             SetValue = function(v)
                 if table.find(options, v) then
                     selectedValue = v
-                    btn.Text = " " .. tostring(selectedValue) .. " "
+                    if btn then btn.Text = " " .. tostring(selectedValue) .. " " end
                     if callback then callback(v) end
                 end
             end,
@@ -939,7 +933,7 @@ ComponentRegistry.Dropdown = {
                 if not keepSelected or not table.find(options, selectedValue) then
                     selectedValue = options[1] or "None"
                 end
-                btn.Text = " " .. tostring(selectedValue) .. " "
+                if btn then btn.Text = " " .. tostring(selectedValue) .. " " end
                 closeDropdown()
             end,
             Flag = flag
@@ -947,13 +941,11 @@ ComponentRegistry.Dropdown = {
     end
 }
 
--- Button Component
 ComponentRegistry.Button = {
     Create = function(parent, config, theme, callback)
         local text = config.Text or "Button"
-        local style = config.Style or "Default" -- Default, Danger, Success
+        local style = config.Style or "Default"
         local flag = config.Flag or text:gsub("%s+", "_"):lower()
-        local tooltip = config.Tooltip
         
         local colors = {
             Default = theme.AccentDarker,
@@ -977,6 +969,7 @@ ComponentRegistry.Button = {
             Parent = parent
         })
         
+        if not btn then return nil end
         ApplyBorder(btn, theme)
         
         btn.MouseEnter:Connect(function()
@@ -991,8 +984,6 @@ ComponentRegistry.Button = {
             if callback then callback() end
         end)
         
-        if tooltip then AddTooltip(btn, tooltip, theme) end
-        
         return {
             Instance = btn,
             Click = function() if callback then callback() end end,
@@ -1002,13 +993,11 @@ ComponentRegistry.Button = {
     end
 }
 
--- Keybind Component
 ComponentRegistry.Keybind = {
     Create = function(parent, config, theme, callback)
         local name = config.Name or "Keybind"
         local default = config.Default or Enum.KeyCode.Unknown
         local flag = config.Flag or name:gsub("%s+", "_"):lower()
-        local tooltip = config.Tooltip
         local onPressed = config.OnPressed
         
         local frame = Create("Frame", {
@@ -1018,10 +1007,11 @@ ComponentRegistry.Keybind = {
             Parent = parent
         })
         
+        if not frame then return nil end
         ApplyBorder(frame, theme)
         
         local label = Create("TextLabel", {
-            Size = UDim2.new(0.6, 0, 1, 0),
+            Size = UDim2.new(0.62, 0, 1, 0),
             Position = UDim2.new(0, 12, 0, 0),
             BackgroundTransparency = 1,
             Text = name,
@@ -1033,8 +1023,8 @@ ComponentRegistry.Keybind = {
         })
         
         local keyBtn = Create("TextButton", {
-            Size = UDim2.new(0, 90, 0, 26),
-            Position = UDim2.new(1, -102, 0.5, -13),
+            Size = UDim2.new(0, 100, 0, 26),
+            Position = UDim2.new(1, -112, 0.5, -13),
             BackgroundColor3 = theme.AccentDarker,
             Text = default ~= Enum.KeyCode.Unknown and default.Name or "NONE",
             TextColor3 = theme.Text,
@@ -1048,49 +1038,50 @@ ComponentRegistry.Keybind = {
         local listening = false
         local currentKey = default
         
-        keyBtn.MouseButton1Click:Connect(function()
-            listening = true
-            keyBtn.Text = "..."
-            keyBtn.BackgroundColor3 = theme.Accent
-        end)
+        if keyBtn then
+            keyBtn.MouseButton1Click:Connect(function()
+                listening = true
+                keyBtn.Text = "..."
+                keyBtn.BackgroundColor3 = theme.Accent
+            end)
+        end
         
-        local connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        local inputBegan = UserInputService.InputBegan:Connect(function(input, gameProcessed)
             if listening and input.UserInputType == Enum.UserInputType.Keyboard then
                 listening = false
                 currentKey = input.KeyCode
-                keyBtn.Text = currentKey ~= Enum.KeyCode.Unknown and currentKey.Name or "NONE"
-                keyBtn.BackgroundColor3 = theme.AccentDarker
+                if keyBtn then
+                    keyBtn.Text = currentKey ~= Enum.KeyCode.Unknown and currentKey.Name or "NONE"
+                    keyBtn.BackgroundColor3 = theme.AccentDarker
+                end
                 if callback then callback(currentKey) end
             elseif not gameProcessed and input.KeyCode == currentKey and onPressed then
                 onPressed()
             end
         end)
         
-        table.insert(ConnectionBin, connection)
-        
-        if tooltip then AddTooltip(frame, tooltip, theme) end
+        table.insert(ConnectionBin, inputBegan)
         
         return {
             Instance = frame,
             GetKey = function() return currentKey end,
             SetKey = function(key)
                 currentKey = key
-                keyBtn.Text = currentKey ~= Enum.KeyCode.Unknown and currentKey.Name or "NONE"
+                if keyBtn then
+                    keyBtn.Text = currentKey ~= Enum.KeyCode.Unknown and currentKey.Name or "NONE"
+                end
             end,
-            Flag = flag,
-            Connection = connection
+            Flag = flag
         }
     end
 }
 
--- TextBox Component
 ComponentRegistry.TextBox = {
     Create = function(parent, config, theme, callback)
         local name = config.Name or "TextBox"
         local placeholder = config.Placeholder or "Enter text..."
         local default = config.Default or ""
         local flag = config.Flag or name:gsub("%s+", "_"):lower()
-        local tooltip = config.Tooltip
         local clearOnFocus = config.ClearOnFocus or false
         local numOnly = config.NumbersOnly or false
         
@@ -1101,6 +1092,7 @@ ComponentRegistry.TextBox = {
             Parent = parent
         })
         
+        if not frame then return nil end
         ApplyBorder(frame, theme)
         
         local label = Create("TextLabel", {
@@ -1139,33 +1131,32 @@ ComponentRegistry.TextBox = {
             Parent = boxFrame
         })
         
-        if numOnly then
+        if box and numOnly then
             box:GetPropertyChangedSignal("Text"):Connect(function()
                 box.Text = box.Text:gsub("[^%d%.%-]", "")
             end)
         end
         
-        box.FocusLost:Connect(function(enterPressed)
-            if callback then callback(box.Text, enterPressed) end
-        end)
-        
-        if tooltip then AddTooltip(frame, tooltip, theme) end
+        if box then
+            box.FocusLost:Connect(function(enterPressed)
+                if callback then callback(box.Text, enterPressed) end
+            end)
+        end
         
         return {
             Instance = frame,
-            GetText = function() return box.Text end,
-            SetText = function(t) box.Text = t end,
-            Focus = function() box:CaptureFocus() end,
+            GetText = function() return box and box.Text or "" end,
+            SetText = function(t) if box then box.Text = t end end,
+            Focus = function() if box then box:CaptureFocus() end end,
             Flag = flag
         }
     end
 }
 
--- Label Component
 ComponentRegistry.Label = {
     Create = function(parent, config, theme)
         local text = config.Text or "Label"
-        local style = config.Style or "Default" -- Default, Header, Dim, Accent
+        local style = config.Style or "Default"
         
         local colors = {
             Default = theme.Text,
@@ -1192,13 +1183,12 @@ ComponentRegistry.Label = {
         
         return {
             Instance = lbl,
-            SetText = function(t) lbl.Text = t end,
-            SetColor = function(c) lbl.TextColor3 = c end
+            SetText = function(t) if lbl then lbl.Text = t end end,
+            SetColor = function(c) if lbl then lbl.TextColor3 = c end end
         }
     end
 }
 
--- Divider Component
 ComponentRegistry.Divider = {
     Create = function(parent, theme, config)
         config = config or {}
@@ -1209,6 +1199,8 @@ ComponentRegistry.Divider = {
             BackgroundTransparency = 1,
             Parent = parent
         })
+        
+        if not frame then return nil end
         
         local line1 = Create("Frame", {
             Size = UDim2.new(text and 0.3 or 0.45, 0, 0, 1),
@@ -1244,7 +1236,6 @@ ComponentRegistry.Divider = {
     end
 }
 
--- ColorPicker Component (Simplified Retro)
 ComponentRegistry.ColorPicker = {
     Create = function(parent, config, theme, callback)
         local name = config.Name or "Color"
@@ -1258,6 +1249,7 @@ ComponentRegistry.ColorPicker = {
             Parent = parent
         })
         
+        if not frame then return nil end
         ApplyBorder(frame, theme)
         
         local label = Create("TextLabel", {
@@ -1283,66 +1275,68 @@ ComponentRegistry.ColorPicker = {
         ApplyBorder(preview, theme)
         
         local value = default
+        local pickerOpen = false
+        local pickerFrame = nil
         
-        -- Simple preset colors for retro feel
         local presets = {
             theme.Accent, theme.ErrorColor, theme.WarningColor, 
             theme.InfoColor, theme.SuccessColor, Color3.fromRGB(255, 255, 255),
             Color3.fromRGB(128, 128, 128), Color3.fromRGB(0, 0, 0)
         }
         
-        local pickerOpen = false
-        local pickerFrame = nil
-        
-        preview.MouseButton1Click:Connect(function()
-            if pickerOpen then
-                if pickerFrame then pickerFrame:Destroy() end
-                pickerOpen = false
-                return
-            end
-            
-            pickerOpen = true
-            pickerFrame = Create("Frame", {
-                Size = UDim2.new(0, 160, 0, 80),
-                Position = UDim2.new(0, -100, 1, 4),
-                BackgroundColor3 = theme.Surface,
-                BorderSizePixel = 0,
-                ZIndex = 100,
-                Parent = preview
-            })
-            
-            ApplyBorder(pickerFrame, theme)
-            
-            for i, color in pairs(presets) do
-                local x = ((i - 1) % 4) * 38 + 4
-                local y = math.floor((i - 1) / 4) * 38 + 4
-                
-                local btn = Create("TextButton", {
-                    Size = UDim2.new(0, 34, 0, 34),
-                    Position = UDim2.new(0, x, 0, y),
-                    BackgroundColor3 = color,
-                    Text = "",
-                    Parent = pickerFrame
-                })
-                
-                ApplyBorder(btn, theme, theme.TextDim)
-                
-                btn.MouseButton1Click:Connect(function()
-                    value = color
-                    preview.BackgroundColor3 = value
+        if preview then
+            preview.MouseButton1Click:Connect(function()
+                if pickerOpen then
                     if pickerFrame then pickerFrame:Destroy() end
                     pickerOpen = false
-                    if callback then callback(value) end
-                end)
-            end
-        end)
+                    return
+                end
+                
+                pickerOpen = true
+                pickerFrame = Create("Frame", {
+                    Size = UDim2.new(0, 160, 0, 80),
+                    Position = UDim2.new(0, -100, 1, 4),
+                    BackgroundColor3 = theme.Surface,
+                    BorderSizePixel = 0,
+                    ZIndex = 100,
+                    Parent = preview
+                })
+                
+                if not pickerFrame then return end
+                ApplyBorder(pickerFrame, theme)
+                
+                for i, color in pairs(presets) do
+                    local x = ((i - 1) % 4) * 38 + 4
+                    local y = math.floor((i - 1) / 4) * 38 + 4
+                    
+                    local btn = Create("TextButton", {
+                        Size = UDim2.new(0, 34, 0, 34),
+                        Position = UDim2.new(0, x, 0, y),
+                        BackgroundColor3 = color,
+                        Text = "",
+                        Parent = pickerFrame
+                    })
+                    
+                    if btn then
+                        ApplyBorder(btn, theme, theme.TextDim)
+                        btn.MouseButton1Click:Connect(function()
+                            value = color
+                            preview.BackgroundColor3 = value
+                            if pickerFrame then pickerFrame:Destroy() end
+                            pickerOpen = false
+                            if callback then callback(value) end
+                        end)
+                    end
+                end
+            end)
+        end
         
         return {
             Instance = frame,
             GetColor = function() return value end,
             SetColor = function(c)
                 value = c
-                preview.BackgroundColor3 = value
+                if preview then preview.BackgroundColor3 = value end
                 if callback then callback(value) end
             end,
             Flag = flag
@@ -1360,21 +1354,22 @@ function VoidFrame:CreateWindow(config)
     local height = config.Height or 500
     local theme = config.Theme or self.CurrentTheme
     local keybind = config.Keybind or Enum.KeyCode.RightShift
-    local canResize = config.CanResize ~= false
-    local icon = config.Icon -- Image ID or text
+    local icon = config.Icon
     
-    -- Initialize notification system
     self.NotificationSystem:Init(theme)
     
-    -- Create main GUI
     local screen = Create("ScreenGui", {
-        Name = "VoidFrame_" .. math.floor(tick() * 1000),
+        Name = "VoidFrame_" .. tostring(math.floor(tick() * 1000)),
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
         Parent = CoreGui
     })
     
-    -- Main container
+    if not screen then
+        warn("VoidFrame: Failed to create ScreenGui")
+        return nil
+    end
+    
     local main = Create("Frame", {
         Name = "Main",
         Size = UDim2.new(0, width, 0, height),
@@ -1385,10 +1380,14 @@ function VoidFrame:CreateWindow(config)
         Parent = screen
     })
     
+    if not main then
+        screen:Destroy()
+        return nil
+    end
+    
     ApplyBorder(main, theme)
     MakeDraggable(main)
     
-    -- Header
     local header = Create("Frame", {
         Name = "Header",
         Size = UDim2.new(1, 0, 0, 46),
@@ -1399,7 +1398,6 @@ function VoidFrame:CreateWindow(config)
     
     ApplyBorder(header, theme)
     
-    -- Title area
     local titleContainer = Create("Frame", {
         Size = UDim2.new(1, -120, 1, 0),
         BackgroundTransparency = 1,
@@ -1445,7 +1443,6 @@ function VoidFrame:CreateWindow(config)
         })
     end
     
-    -- Window controls
     local minimizeBtn = Create("TextButton", {
         Size = UDim2.new(0, 34, 0, 34),
         Position = UDim2.new(1, -74, 0, 6),
@@ -1472,7 +1469,6 @@ function VoidFrame:CreateWindow(config)
     
     ApplyBorder(closeBtn, theme)
     
-    -- Sidebar
     local sidebar = Create("Frame", {
         Size = UDim2.new(0, 180, 1, -52),
         Position = UDim2.new(0, 8, 0, 52),
@@ -1499,11 +1495,14 @@ function VoidFrame:CreateWindow(config)
         Parent = tabList
     })
     
-    tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        tabList.CanvasSize = UDim2.new(0, 0, 0, tabLayout.AbsoluteContentSize.Y + 8)
-    end)
+    if tabLayout then
+        tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            if tabList then
+                tabList.CanvasSize = UDim2.new(0, 0, 0, tabLayout.AbsoluteContentSize.Y + 8)
+            end
+        end)
+    end
     
-    -- Content area
     local contentArea = Create("Frame", {
         Size = UDim2.new(1, -196, 1, -52),
         Position = UDim2.new(0, 188, 0, 52),
@@ -1514,7 +1513,6 @@ function VoidFrame:CreateWindow(config)
     
     ApplyBorder(contentArea, theme)
     
-    -- Minimized icon
     local minimizedIcon = Create("TextButton", {
         Size = UDim2.new(0, 50, 0, 50),
         Position = UDim2.new(0, 20, 0, 20),
@@ -1530,7 +1528,6 @@ function VoidFrame:CreateWindow(config)
     ApplyBorder(minimizedIcon, theme)
     MakeDraggable(minimizedIcon)
     
-    -- Window API
     local window = {
         Theme = theme,
         Screen = screen,
@@ -1544,33 +1541,37 @@ function VoidFrame:CreateWindow(config)
         IsMinimized = false
     }
     
-    -- Control functionality
-    minimizeBtn.MouseButton1Click:Connect(function()
-        main.Visible = false
-        minimizedIcon.Visible = true
-        window.IsMinimized = true
-        window.IsVisible = false
-    end)
+    if minimizeBtn then
+        minimizeBtn.MouseButton1Click:Connect(function()
+            main.Visible = false
+            minimizedIcon.Visible = true
+            window.IsMinimized = true
+            window.IsVisible = false
+        end)
+    end
     
-    minimizedIcon.MouseButton1Click:Connect(function()
-        minimizedIcon.Visible = false
-        main.Visible = true
-        window.IsMinimized = false
-        window.IsVisible = true
-    end)
+    if minimizedIcon then
+        minimizedIcon.MouseButton1Click:Connect(function()
+            minimizedIcon.Visible = false
+            main.Visible = true
+            window.IsMinimized = false
+            window.IsVisible = true
+        end)
+    end
     
-    closeBtn.MouseButton1Click:Connect(function()
-        screen:Destroy()
-        for i, w in pairs(Windows) do
-            if w == window then
-                table.remove(Windows, i)
-                break
+    if closeBtn then
+        closeBtn.MouseButton1Click:Connect(function()
+            screen:Destroy()
+            for i, w in pairs(Windows) do
+                if w == window then
+                    table.remove(Windows, i)
+                    break
+                end
             end
-        end
-    end)
+        end)
+    end
     
-    -- Toggle with keybind
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    local keybindConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not gameProcessed and input.KeyCode == keybind then
             if window.IsMinimized then
                 minimizedIcon.Visible = false
@@ -1584,16 +1585,17 @@ function VoidFrame:CreateWindow(config)
         end
     end)
     
-    -- Tab Creation
+    table.insert(ConnectionBin, keybindConnection)
+    
     function window:AddTab(config)
         config = config or {}
         local name = config.Name or "Tab"
-        local icon = config.Icon
+        local tabIcon = config.Icon
         
         local tabBtn = Create("TextButton", {
             Size = UDim2.new(1, -4, 0, 36),
             BackgroundColor3 = theme.AccentVeryDark,
-            Text = (icon and icon .. " " or "") .. name,
+            Text = (tabIcon and tabIcon .. " " or "") .. name,
             TextColor3 = theme.TextDim,
             Font = theme.Font,
             TextSize = 13,
@@ -1601,6 +1603,7 @@ function VoidFrame:CreateWindow(config)
             Parent = tabList
         })
         
+        if not tabBtn then return nil end
         ApplyBorder(tabBtn, theme)
         
         local tabContent = Create("ScrollingFrame", {
@@ -1619,9 +1622,13 @@ function VoidFrame:CreateWindow(config)
             Parent = tabContent
         })
         
-        contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            tabContent.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + 16)
-        end)
+        if contentLayout then
+            contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                if tabContent then
+                    tabContent.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + 16)
+                end
+            end)
+        end
         
         local tab = {
             Name = name,
@@ -1649,12 +1656,10 @@ function VoidFrame:CreateWindow(config)
         
         table.insert(self.Tabs, tab)
         
-        -- Auto-select first tab
         if #self.Tabs == 1 then
             self:SelectTab(tab)
         end
         
-        -- Tab API
         local tabAPI = {}
         
         function tabAPI:AddSection(text)
@@ -1686,110 +1691,64 @@ function VoidFrame:CreateWindow(config)
         
         function tabAPI:AddToggle(config, callback)
             local comp = ComponentRegistry.Toggle.Create(tabContent, config, theme, callback)
-            table.insert(tab.Elements, comp)
-            window.ConfigData[comp.Flag] = comp.GetValue
+            if comp then
+                table.insert(tab.Elements, comp)
+                self.ConfigData[comp.Flag] = comp.GetValue
+            end
             return comp
         end
         
         function tabAPI:AddSlider(config, callback)
             local comp = ComponentRegistry.Slider.Create(tabContent, config, theme, callback)
-            table.insert(tab.Elements, comp)
-            window.ConfigData[comp.Flag] = comp.GetValue
+            if comp then
+                table.insert(tab.Elements, comp)
+                self.ConfigData[comp.Flag] = comp.GetValue
+            end
             return comp
         end
         
         function tabAPI:AddDropdown(config, callback)
             local comp = ComponentRegistry.Dropdown.Create(tabContent, config, theme, callback)
-            table.insert(tab.Elements, comp)
-            window.ConfigData[comp.Flag] = comp.GetValue
+            if comp then
+                table.insert(tab.Elements, comp)
+                self.ConfigData[comp.Flag] = comp.GetValue
+            end
             return comp
         end
         
         function tabAPI:AddButton(config, callback)
             local comp = ComponentRegistry.Button.Create(tabContent, config, theme, callback)
-            table.insert(tab.Elements, comp)
+            if comp then
+                table.insert(tab.Elements, comp)
+            end
             return comp
         end
         
         function tabAPI:AddKeybind(config, callback)
             local comp = ComponentRegistry.Keybind.Create(tabContent, config, theme, callback)
-            table.insert(tab.Elements, comp)
-            window.ConfigData[comp.Flag] = comp.GetKey
+            if comp then
+                table.insert(tab.Elements, comp)
+                self.ConfigData[comp.Flag] = comp.GetKey
+            end
             return comp
         end
         
         function tabAPI:AddTextBox(config, callback)
             local comp = ComponentRegistry.TextBox.Create(tabContent, config, theme, callback)
-            table.insert(tab.Elements, comp)
-            window.ConfigData[comp.Flag] = comp.GetText
+            if comp then
+                table.insert(tab.Elements, comp)
+                self.ConfigData[comp.Flag] = comp.GetText
+            end
             return comp
         end
         
         function tabAPI:AddColorPicker(config, callback)
             local comp = ComponentRegistry.ColorPicker.Create(tabContent, config, theme, callback)
-            table.insert(tab.Elements, comp)
-            window.ConfigData[comp.Flag] = comp.GetColor
-            return comp
-        end
-        
-        -- Group/Container
-        function tabAPI:AddGroup(title)
-            local groupFrame = Create("Frame", {
-                Size = UDim2.new(1, 0, 0, 0),
-                AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundColor3 = theme.Background,
-                BorderSizePixel = 0,
-                Parent = tabContent
-            })
-            
-            ApplyBorder(groupFrame, theme)
-            
-            local header = Create("Frame", {
-                Size = UDim2.new(1, 0, 0, 28),
-                BackgroundColor3 = theme.AccentVeryDark,
-                BorderSizePixel = 0,
-                Parent = groupFrame
-            })
-            
-            local titleLbl = Create("TextLabel", {
-                Size = UDim2.new(1, -10, 1, 0),
-                Position = UDim2.new(0, 10, 0, 0),
-                BackgroundTransparency = 1,
-                Text = "◆ " .. title,
-                TextColor3 = theme.Accent,
-                Font = theme.MonoFont,
-                TextSize = 13,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                Parent = header
-            })
-            
-            local container = Create("Frame", {
-                Size = UDim2.new(1, -8, 0, 0),
-                Position = UDim2.new(0, 4, 0, 32),
-                AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundTransparency = 1,
-                Parent = groupFrame
-            })
-            
-            local listLayout = Create("UIListLayout", {
-                Padding = UDim.new(0, 6),
-                SortOrder = Enum.SortOrder.LayoutOrder,
-                Parent = container
-            })
-            
-            listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                container.Size = UDim2.new(1, -8, 0, listLayout.AbsoluteContentSize.Y + 8)
-                groupFrame.Size = UDim2.new(1, 0, 0, 32 + listLayout.AbsoluteContentSize.Y + 12)
-            end)
-            
-            local groupAPI = {}
-            
-            function groupAPI:AddToggle(config, callback)
-                return tabAPI.AddToggle(config, callback).Instance.Parent = container
+            if comp then
+                table.insert(tab.Elements, comp)
+                self.ConfigData[comp.Flag] = comp.GetColor
             end
-            -- Mirror other methods to container...
-            
-            return groupAPI
+            return comp
         end
         
         return tabAPI
@@ -1824,7 +1783,6 @@ function VoidFrame:CreateWindow(config)
     
     function window:LoadConfigData(data)
         for flag, value in pairs(data) do
-            -- Find element with this flag and set value
             for _, tab in pairs(self.Tabs) do
                 for _, element in pairs(tab.Elements) do
                     if element.Flag == flag then
@@ -1859,8 +1817,7 @@ function VoidFrame:CreateWindow(config)
     function window:SetTheme(newTheme)
         self.Theme = newTheme
         VoidFrame.CurrentTheme = newTheme
-        -- Would need to recursively update all elements...
-        self.Notify("THEME", "Theme updated to " .. newTheme.Name, 2)
+        self:Notify("THEME", "Theme updated to " .. newTheme.Name, 2)
     end
     
     function window:Destroy()
@@ -1877,7 +1834,6 @@ function VoidFrame:CreateWindow(config)
     return window
 end
 
--- Global API Shortcuts
 function VoidFrame:SetTheme(themeName)
     if self.Themes[themeName] then
         self.CurrentTheme = self.Themes[themeName]
@@ -1909,17 +1865,20 @@ function VoidFrame:CreateCustomTheme(name, properties)
 end
 
 -- Cleanup
-game:GetService("Players").PlayerRemoving:Connect(function(player)
-    if player == Players.LocalPlayer then
-        for _, window in pairs(Windows) do
-            if window.Screen then
-                window.Screen:Destroy()
+local player = Players.LocalPlayer
+if player then
+    player.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            for _, window in pairs(Windows) do
+                if window.Screen then
+                    window.Screen:Destroy()
+                end
+            end
+            for _, conn in pairs(ConnectionBin) do
+                if conn then conn:Disconnect() end
             end
         end
-        for _, conn in pairs(ConnectionBin) do
-            if conn then conn:Disconnect() end
-        end
-    end
-end)
+    end)
+end
 
 return VoidFrame
