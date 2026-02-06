@@ -1,3 +1,12 @@
+--[[
+Voidframe - Roblox Lua GUI Library (single-file)
+Version: 1.0.0
+Notes:
+  - This is a functional, modern-styled, smooth GUI library focused on the API you listed.
+  - Designed for executor usage; works in Studio too, but file configs require writefile/readfile.
+  - Config/theme systems are in-memory by default; file persistence uses writefile/readfile when available.
+]]
+
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -26,15 +35,18 @@ local STATE = {
 }
 
 local DEFAULT_THEME = {
-    Accent = Color3.fromRGB(110, 120, 255),
-    AccentSoft = Color3.fromRGB(90, 98, 220),
-    Bg = Color3.fromRGB(18, 18, 22),
-    BgSoft = Color3.fromRGB(24, 24, 30),
-    Panel = Color3.fromRGB(28, 28, 36),
-    PanelSoft = Color3.fromRGB(32, 32, 42),
-    Text = Color3.fromRGB(235, 235, 245),
-    TextDim = Color3.fromRGB(160, 160, 175),
-    Border = Color3.fromRGB(50, 50, 64),
+    Accent = Color3.fromRGB(125, 85, 255),
+    AccentSoft = Color3.fromRGB(105, 70, 230),
+    Bg = Color3.fromRGB(15, 15, 18),
+    BgSoft = Color3.fromRGB(19, 19, 24),
+    Panel = Color3.fromRGB(24, 24, 30),
+    PanelSoft = Color3.fromRGB(30, 30, 38),
+    Text = Color3.fromRGB(240, 240, 248),
+    TextDim = Color3.fromRGB(170, 170, 185),
+    Border = Color3.fromRGB(44, 44, 56),
+    Header = Color3.fromRGB(20, 20, 26),
+    Sidebar = Color3.fromRGB(20, 20, 26),
+    Card = Color3.fromRGB(28, 28, 36),
     Danger = Color3.fromRGB(255, 90, 90),
     Warning = Color3.fromRGB(255, 200, 80),
     Success = Color3.fromRGB(90, 220, 140),
@@ -69,6 +81,14 @@ local function applyStroke(instance, color, thickness, transparency)
     stroke.Parent = instance
 end
 
+local function applyGradient(instance, colors, rotation)
+    local grad = Instance.new("UIGradient")
+    grad.Color = colors
+    grad.Rotation = rotation or 0
+    grad.Parent = instance
+    return grad
+end
+
 local function makeShadow(parent)
     local shadow = Instance.new("ImageLabel")
     shadow.Name = "Shadow"
@@ -95,7 +115,7 @@ local function makeText(parent, text, size, dim, align)
     label.BackgroundTransparency = 1
     label.Text = text or ""
     label.TextSize = size or 14
-    label.Font = Enum.Font.GothamSemibold
+    label.Font = Enum.Font.Gotham
     label.TextColor3 = dim or Color3.new(1, 1, 1)
     label.TextXAlignment = align or Enum.TextXAlignment.Left
     label.TextYAlignment = Enum.TextYAlignment.Center
@@ -146,6 +166,10 @@ local function baseButtonStyle(frame, theme)
     frame.BorderSizePixel = 0
     applyCorner(frame, 8)
     applyStroke(frame, theme.Border, 1, 0.3)
+    applyGradient(frame, ColorSequence.new({
+        ColorSequenceKeypoint.new(0, theme.Panel),
+        ColorSequenceKeypoint.new(1, theme.PanelSoft),
+    }), 90)
 end
 
 local function createScroller(parent)
@@ -268,29 +292,64 @@ function Library:CreateWindow(options)
     applyCorner(root, 12)
     applyStroke(root, theme.Border, 1, 0.2)
     makeShadow(root)
+    applyGradient(root, ColorSequence.new({
+        ColorSequenceKeypoint.new(0, theme.Bg),
+        ColorSequenceKeypoint.new(1, theme.BgSoft),
+    }), 45)
 
     local header = Instance.new("Frame")
     header.Name = "Header"
     header.Size = UDim2.new(1, 0, 0, 60)
-    header.BackgroundTransparency = 1
+    header.BackgroundColor3 = theme.Header or theme.Panel
+    header.BackgroundTransparency = 0
     header.Parent = root
+    applyCorner(header, 12)
+    applyGradient(header, ColorSequence.new({
+        ColorSequenceKeypoint.new(0, theme.Header or theme.Panel),
+        ColorSequenceKeypoint.new(1, theme.PanelSoft),
+    }), 0)
+
+    local headerLine = Instance.new("Frame")
+    headerLine.Name = "HeaderLine"
+    headerLine.BackgroundColor3 = theme.Accent
+    headerLine.BorderSizePixel = 0
+    headerLine.Size = UDim2.new(1, 0, 0, 1)
+    headerLine.Position = UDim2.new(0, 0, 1, -1)
+    headerLine.Parent = header
+    headerLine.BackgroundTransparency = 0.2
 
     local title = makeText(header, options.Title or "Voidframe", 18, theme.Text, Enum.TextXAlignment.Left)
-    title.Position = UDim2.new(0, 20, 0, 10)
-    title.Size = UDim2.new(1, -40, 0, 22)
+    title.Position = UDim2.new(0, 20, 0, 8)
+    title.Size = UDim2.new(1, -60, 0, 22)
+    title.Font = Enum.Font.GothamSemibold
 
     local subtitle = makeText(header, options.Subtitle or "Modern UI Library", 12, theme.TextDim, Enum.TextXAlignment.Left)
     subtitle.Position = UDim2.new(0, 20, 0, 30)
-    subtitle.Size = UDim2.new(1, -40, 0, 16)
+    subtitle.Size = UDim2.new(1, -60, 0, 16)
+
+    if options.Icon then
+        local icon = Instance.new("ImageLabel")
+        icon.Name = "WindowIcon"
+        icon.BackgroundTransparency = 1
+        icon.Size = UDim2.new(0, 24, 0, 24)
+        icon.Position = UDim2.new(1, -34, 0, 18)
+        icon.Image = tostring(options.Icon)
+        icon.ImageColor3 = theme.Text
+        icon.Parent = header
+    end
 
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
     sidebar.Size = UDim2.new(0, 180, 1, -60)
     sidebar.Position = UDim2.new(0, 0, 0, 60)
-    sidebar.BackgroundColor3 = theme.Panel
+    sidebar.BackgroundColor3 = theme.Sidebar or theme.Panel
     sidebar.BorderSizePixel = 0
     sidebar.Parent = root
     applyCorner(sidebar, 12)
+    applyGradient(sidebar, ColorSequence.new({
+        ColorSequenceKeypoint.new(0, theme.Sidebar or theme.Panel),
+        ColorSequenceKeypoint.new(1, theme.PanelSoft),
+    }), 0)
 
     local sideLayout = Instance.new("UIListLayout")
     sideLayout.Padding = UDim.new(0, 8)
@@ -311,6 +370,10 @@ function Library:CreateWindow(options)
     content.BorderSizePixel = 0
     content.Parent = root
     applyCorner(content, 12)
+    applyGradient(content, ColorSequence.new({
+        ColorSequenceKeypoint.new(0, theme.BgSoft),
+        ColorSequenceKeypoint.new(1, theme.PanelSoft),
+    }), 90)
 
     local contentPad = Instance.new("UIPadding")
     contentPad.PaddingTop = UDim.new(0, 16)
@@ -352,6 +415,14 @@ function Library:CreateWindow(options)
 
     table.insert(STATE.windows, window)
     syncTheme(window)
+
+    if not STATE.autoLoadName and hasFileIO() then
+        local index = loadIndex()
+        if index.autoload then
+            STATE.autoLoad = true
+            STATE.autoLoadName = index.autoload
+        end
+    end
 
     if STATE.autoLoad and STATE.autoLoadName then
         pcall(function()
@@ -452,9 +523,30 @@ function Window:AddTab(name, icon)
     applyCorner(tabButton, 8)
     applyStroke(tabButton, theme.Border, 1, 0.6)
 
+    local indicator = Instance.new("Frame")
+    indicator.Name = "Indicator"
+    indicator.BackgroundColor3 = theme.Accent
+    indicator.BorderSizePixel = 0
+    indicator.Size = UDim2.new(0, 3, 1, -10)
+    indicator.Position = UDim2.new(0, 4, 0, 5)
+    indicator.Parent = tabButton
+    applyCorner(indicator, 4)
+    indicator.Visible = false
+
     local label = makeText(tabButton, name or "Tab", 13, theme.Text, Enum.TextXAlignment.Left)
-    label.Position = UDim2.new(0, 10, 0, 6)
-    label.Size = UDim2.new(1, -20, 1, -12)
+    label.Position = UDim2.new(0, 28, 0, 6)
+    label.Size = UDim2.new(1, -36, 1, -12)
+
+    local iconLabel = nil
+    if icon then
+        iconLabel = Instance.new("ImageLabel")
+        iconLabel.BackgroundTransparency = 1
+        iconLabel.Size = UDim2.new(0, 16, 0, 16)
+        iconLabel.Position = UDim2.new(0, 8, 0.5, -8)
+        iconLabel.Image = tostring(icon)
+        iconLabel.ImageColor3 = theme.TextDim
+        iconLabel.Parent = tabButton
+    end
 
     local click = createClickArea(tabButton)
 
@@ -477,6 +569,8 @@ function Window:AddTab(name, icon)
         _window = self,
         _sections = {},
         _icon = icon,
+        _indicator = indicator,
+        _iconLabel = iconLabel,
     }, Tab)
 
     addConn(click.MouseEnter:Connect(function()
@@ -506,9 +600,13 @@ function Tab:Select()
         local prev = self._window._selected
         prev._page.Visible = false
         hoverTween(prev._button, theme.PanelSoft, theme)
+        if prev._indicator then prev._indicator.Visible = false end
+        if prev._iconLabel then prev._iconLabel.ImageColor3 = theme.TextDim end
     end
     self._page.Visible = true
     hoverTween(self._button, theme.Panel, theme)
+    if self._indicator then self._indicator.Visible = true end
+    if self._iconLabel then self._iconLabel.ImageColor3 = theme.Text end
     self._window._selected = self
 end
 
@@ -1364,6 +1462,7 @@ end
 
 -- Config system (file I/O if available)
 local CONFIG_DIR = "voidframe/configs"
+local CONFIG_INDEX = "voidframe/configs/index.json"
 
 local function hasFileIO()
     return type(writefile) == "function" and type(readfile) == "function"
@@ -1392,6 +1491,34 @@ local function decodeConfig(data)
     return ok and decoded or {}
 end
 
+local function loadIndex()
+    if not hasFileIO() then
+        return { autoload = nil, configs = {}, meta = {} }
+    end
+    ensureConfigDir()
+    if type(isfile) == "function" and isfile(CONFIG_INDEX) then
+        local ok, data = pcall(function()
+            return readfile(CONFIG_INDEX)
+        end)
+        if ok then
+            local decoded = decodeConfig(data)
+            decoded.configs = decoded.configs or {}
+            decoded.meta = decoded.meta or {}
+            return decoded
+        end
+    end
+    return { autoload = nil, configs = {}, meta = {} }
+end
+
+local function saveIndex(index)
+    if not hasFileIO() then return false end
+    ensureConfigDir()
+    local ok = pcall(function()
+        writefile(CONFIG_INDEX, encodeConfig(index))
+    end)
+    return ok
+end
+
 function Library:SaveConfig(name)
     local snapshot = self:GetState()
     STATE.configs = STATE.configs or {}
@@ -1402,6 +1529,11 @@ function Library:SaveConfig(name)
         local ok = pcall(function()
             writefile(configPath(name), encodeConfig(snapshot))
         end)
+        local index = loadIndex()
+        index.configs[name] = true
+        index.meta[name] = index.meta[name] or { created = os.time() }
+        index.meta[name].updated = os.time()
+        saveIndex(index)
         return ok
     end
     return false
@@ -1435,6 +1567,15 @@ function Library:DeleteConfig(name)
             pcall(delfile, path)
         end
     end
+    if hasFileIO() then
+        local index = loadIndex()
+        index.configs[name] = nil
+        index.meta[name] = nil
+        if index.autoload == name then
+            index.autoload = nil
+        end
+        saveIndex(index)
+    end
 end
 
 function Library:ListConfigs()
@@ -1448,7 +1589,7 @@ function Library:ListConfigs()
         if ok and type(files) == "table" then
             for _, f in ipairs(files) do
                 local name = f:match("([^/\\]+)%.json$")
-                if name then table.insert(list, name) end
+                if name and name ~= "index" then table.insert(list, name) end
             end
         end
     end
@@ -1471,6 +1612,11 @@ function Library:AutoLoadConfig(state)
     if type(state) == "string" then
         STATE.autoLoad = true
         STATE.autoLoadName = state
+        if hasFileIO() then
+            local index = loadIndex()
+            index.autoload = state
+            saveIndex(index)
+        end
     else
         STATE.autoLoad = state
     end
@@ -1478,6 +1624,101 @@ end
 
 function Library:ResetConfig()
     self:SetState({})
+end
+
+function Library:SetConfigFolder(path)
+    if type(path) ~= "string" or path == "" then return end
+    CONFIG_DIR = path
+    CONFIG_INDEX = CONFIG_DIR .. "/index.json"
+    ensureConfigDir()
+end
+
+function Library:GetConfigFolder()
+    return CONFIG_DIR
+end
+
+function Library:GetAutoLoadConfig()
+    if STATE.autoLoadName then return STATE.autoLoadName end
+    if hasFileIO() then
+        local index = loadIndex()
+        return index.autoload
+    end
+    return nil
+end
+
+function Library:SetAutoLoadConfig(name)
+    return self:AutoLoadConfig(name)
+end
+
+function Library:ConfigExists(name)
+    if STATE.configs and STATE.configs[name] then return true end
+    if hasFileIO() and type(isfile) == "function" then
+        return isfile(configPath(name))
+    end
+    return false
+end
+
+function Library:RenameConfig(oldName, newName)
+    if not oldName or not newName then return false end
+    if hasFileIO() and type(isfile) == "function" and type(delfile) == "function" then
+        local oldPath = configPath(oldName)
+        local newPath = configPath(newName)
+        if isfile(oldPath) then
+            local ok, data = pcall(readfile, oldPath)
+            if ok then
+                pcall(writefile, newPath, data)
+                pcall(delfile, oldPath)
+            end
+        end
+        local index = loadIndex()
+        if index.configs[oldName] then
+            index.configs[oldName] = nil
+            index.configs[newName] = true
+        end
+        if index.meta[oldName] then
+            index.meta[newName] = index.meta[oldName]
+            index.meta[oldName] = nil
+        end
+        if index.autoload == oldName then
+            index.autoload = newName
+        end
+        saveIndex(index)
+        return true
+    end
+    return false
+end
+
+function Library:ExportConfigByName(name)
+    if hasFileIO() and type(isfile) == "function" and isfile(configPath(name)) then
+        local ok, data = pcall(readfile, configPath(name))
+        if ok then return data end
+    end
+    if STATE.configs and STATE.configs[name] then
+        return encodeConfig(STATE.configs[name])
+    end
+    return nil
+end
+
+function Library:ImportConfigAs(name, data)
+    if not name then return false end
+    if type(data) == "string" then
+        if hasFileIO() then
+            ensureConfigDir()
+            local ok = pcall(writefile, configPath(name), data)
+            if ok then
+                local index = loadIndex()
+                index.configs[name] = true
+                index.meta[name] = index.meta[name] or { created = os.time() }
+                index.meta[name].updated = os.time()
+                saveIndex(index)
+                return true
+            end
+        end
+        return false
+    elseif type(data) == "table" then
+        return self:SaveConfig(name)
+    end
+    return false
 end
 
 -- Input handling
