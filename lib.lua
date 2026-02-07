@@ -1,14 +1,14 @@
 --[[
-VoidFrame UI Library
-Public, retro, pixel-style UI library
-Includes: Window, Tab, Section, Label, Button, Toggle, Slider, Dropdown, Keybind
-Includes FULL config system: Save / Load / AutoLoad
-Made to be EASY for users, not dev-only garbage
 
-Usage example at bottom of file
-]]
+  _________       .__.__             ___ ___      ___.     
+ /   _____/ _____ |__|  |   ____    /   |   \ __ _\_ |__   
+ \_____  \ /     \|  |  | _/ __ \  /    ~    \  |  \ __ \  
+ /        \  Y Y  \  |  |_\  ___/  \    Y    /  |  / \_\ \ 
+/_______  /__|_|  /__|____/\___  >  \___|_  /|____/|___  / 
+        \/      \/             \/         \/           \/  
 
---// Services
+--]]
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
@@ -16,7 +16,6 @@ local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
---// Executor-safe filesystem wrappers
 local FS = {}
 FS.folder = "VoidFrame"
 FS.configFolder = FS.folder.."/configs"
@@ -50,7 +49,7 @@ VoidFrame.Elements = {}
 VoidFrame.ConfigName = "default"
 VoidFrame.AutoLoad = true
 
---// Theme (pixel / retro)
+--// Theme
 VoidFrame.Theme = {
     Background = Color3.fromRGB(20,20,20),
     Border = Color3.fromRGB(80,80,80),
