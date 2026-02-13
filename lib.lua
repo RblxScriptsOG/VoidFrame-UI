@@ -328,28 +328,28 @@ function SmileUILib:CreateWindow(title, width, height)
         end)
         tabBtn.MouseEnter:Connect(function()
             if activePage ~= page then
-                TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo), {
+                TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
                     BackgroundColor3 = DEFAULT_THEME.AccentDarker
                 }):Play()
             end
         end)
         tabBtn.MouseLeave:Connect(function()
             if activePage ~= page then
-                TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo), {
+                TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
                     BackgroundColor3 = DEFAULT_THEME.AccentVeryDark
                 }):Play()
             end
         end)
         tabBtn.MouseButton1Click:Connect(function()
             if activePage then
-                TweenService:Create(activePage, TweenInfo.new(0.3, Enum.EasingStyle.Expo), {CanvasPosition = Vector2.new(0, 0)}):Play()
+                TweenService:Create(activePage, TweenInfo.new(0.3, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {CanvasPosition = Vector2.new(0, 0)}):Play()
                 activePage.Visible = false
             end
             page.Visible = true
             activePage = page
             for _, b in tabs:GetChildren() do
                 if b:IsA("TextButton") then
-                    TweenService:Create(b, TweenInfo.new(0.25, Enum.EasingStyle.Expo), {
+                    TweenService:Create(b, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
                         BackgroundColor3 = (b == tabBtn) and DEFAULT_THEME.AccentDark or DEFAULT_THEME.AccentVeryDark,
                         TextColor3 = (b == tabBtn) and DEFAULT_THEME.Text or DEFAULT_THEME.TextDim
                     }):Play()
@@ -450,7 +450,7 @@ function SmileUILib:CreateWindow(title, width, height)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     TweenService:Create(frame, TweenInfo.new(0.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(1, -8, 0, 36)}):Play()
                     default = not default
-                    TweenService:Create(knob, TweenInfo.new(0.25, Enum.EasingStyle.Expo), {Position = UDim2.new(default and 0.5 or 0, 0, 0, 0), BackgroundColor3 = default and DEFAULT_THEME.Accent or DEFAULT_THEME.TextDim}):Play()
+                    TweenService:Create(knob, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {Position = UDim2.new(default and 0.5 or 0, 0, 0, 0), BackgroundColor3 = default and DEFAULT_THEME.Accent or DEFAULT_THEME.TextDim}):Play()
                     if callback then callback(default) end
                 end
             end)
@@ -485,12 +485,12 @@ function SmileUILib:CreateWindow(title, width, height)
                 if callback then callback() end
             end)
             btn.MouseEnter:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Expo), {
+                TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
                     BackgroundColor3 = DEFAULT_THEME.Accent
                 }):Play()
             end)
             btn.MouseLeave:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Expo), {
+                TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
                     BackgroundColor3 = DEFAULT_THEME.AccentDarker
                 }):Play()
             end)
@@ -661,10 +661,10 @@ function SmileUILib:CreateWindow(title, width, height)
                     if callback then callback(v) end
                 end)
                 optBtn.MouseEnter:Connect(function()
-                    TweenService:Create(optBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo), {BackgroundColor3 = DEFAULT_THEME.Accent}):Play()
+                    TweenService:Create(optBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {BackgroundColor3 = DEFAULT_THEME.Accent}):Play()
                 end)
                 optBtn.MouseLeave:Connect(function()
-                    TweenService:Create(optBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo), {BackgroundColor3 = DEFAULT_THEME.AccentDarker}):Play()
+                    TweenService:Create(optBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {BackgroundColor3 = DEFAULT_THEME.AccentDarker}):Play()
                 end)
             end
             dropLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
