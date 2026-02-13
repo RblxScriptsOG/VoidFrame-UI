@@ -14,19 +14,19 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local DEFAULT_THEME = {
-    Background = Color3.fromRGB(30, 30, 30),
-    Header = Color3.fromRGB(40, 40, 40),
-    Accent = Color3.fromRGB(0, 122, 255),
-    AccentDark = Color3.fromRGB(0, 100, 200),
-    AccentDarker = Color3.fromRGB(0, 80, 160),
-    AccentVeryDark = Color3.fromRGB(20, 20, 20),
+    Background = Color3.fromRGB(25, 25, 25),
+    Header = Color3.fromRGB(35, 35, 35),
+    Accent = Color3.fromRGB(0, 200, 0),
+    AccentDark = Color3.fromRGB(0, 150, 0),
+    AccentDarker = Color3.fromRGB(0, 100, 0),
+    AccentVeryDark = Color3.fromRGB(15, 15, 15),
     Text = Color3.fromRGB(255, 255, 255),
     TextDim = Color3.fromRGB(200, 200, 200),
     StrokeColor = Color3.fromRGB(60, 60, 60),
     CornerRadius = UDim.new(0, 8),
     StrokeThickness = 1,
     StrokeTransparency = 0.6,
-    Font = Enum.Font.Gotham
+    Font = Enum.Font.SourceSans
 }
 local notifContainer
 local function initNotifications()
@@ -231,7 +231,7 @@ function SmileUILib:CreateWindow(title, width, height)
     function window:AddTab(tabName)
         local tabBtn = Instance.new("TextButton")
         tabBtn.Size = UDim2.new(1, -12, 0, 38)
-        tabBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        tabBtn.BackgroundColor3 = DEFAULT_THEME.AccentVeryDark
         tabBtn.Text = tabName
         tabBtn.TextColor3 = DEFAULT_THEME.TextDim
         tabBtn.Font = DEFAULT_THEME.Font
@@ -260,14 +260,14 @@ function SmileUILib:CreateWindow(title, width, height)
         tabBtn.MouseEnter:Connect(function()
             if activePage ~= page then
                 TweenService:Create(tabBtn, TweenInfo.new(0.18), {
-                    BackgroundColor3 = DEFAULT_THEME.AccentVeryDark
+                    BackgroundColor3 = DEFAULT_THEME.AccentDarker
                 }):Play()
             end
         end)
         tabBtn.MouseLeave:Connect(function()
             if activePage ~= page then
                 TweenService:Create(tabBtn, TweenInfo.new(0.18), {
-                    BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                    BackgroundColor3 = DEFAULT_THEME.AccentVeryDark
                 }):Play()
             end
         end)
@@ -280,14 +280,14 @@ function SmileUILib:CreateWindow(title, width, height)
             for _, b in tabs:GetChildren() do
                 if b:IsA("TextButton") then
                     TweenService:Create(b, TweenInfo.new(0.18), {
-                        BackgroundColor3 = (b == tabBtn) and DEFAULT_THEME.AccentDarker or Color3.fromRGB(0, 0, 0),
+                        BackgroundColor3 = (b == tabBtn) and DEFAULT_THEME.AccentDark or DEFAULT_THEME.AccentVeryDark,
                         TextColor3 = (b == tabBtn) and DEFAULT_THEME.Text or DEFAULT_THEME.TextDim
                     }):Play()
                 end
             end
         end)
         if not activePage then
-            tabBtn.BackgroundColor3 = DEFAULT_THEME.AccentDarker
+            tabBtn.BackgroundColor3 = DEFAULT_THEME.AccentDark
             tabBtn.TextColor3 = DEFAULT_THEME.Text
             page.Visible = true
             activePage = page
@@ -351,15 +351,15 @@ function SmileUILib:CreateWindow(title, width, height)
             local track = Instance.new("Frame")
             track.Size = UDim2.new(0, 50, 0, 24)
             track.Position = UDim2.new(1, -62, 0.5, -12)
-            track.BackgroundColor3 = default and DEFAULT_THEME.Accent or DEFAULT_THEME.AccentDarker
+            track.BackgroundColor3 = DEFAULT_THEME.AccentDarker
             track.Parent = frame
             local tc = Instance.new("UICorner")
             tc.CornerRadius = UDim.new(1, 0)
             tc.Parent = track
             local knob = Instance.new("Frame")
             knob.Size = UDim2.new(0, 24, 0, 24)
-            knob.Position = UDim2.new(default and 1 or 0, -24, 0, 0)
-            knob.BackgroundColor3 = DEFAULT_THEME.Text
+            knob.Position = UDim2.new(default and 0.5 or 0, 0, 0, 0)
+            knob.BackgroundColor3 = default and DEFAULT_THEME.Accent or DEFAULT_THEME.TextDim
             knob.Parent = track
             local kc = Instance.new("UICorner")
             kc.CornerRadius = UDim.new(1, 0)
@@ -367,8 +367,7 @@ function SmileUILib:CreateWindow(title, width, height)
             frame.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     default = not default
-                    TweenService:Create(knob, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Position = UDim2.new(default and 1 or 0, -24, 0, 0)}):Play()
-                    TweenService:Create(track, TweenInfo.new(0.15), {BackgroundColor3 = default and DEFAULT_THEME.Accent or DEFAULT_THEME.AccentDarker}):Play()
+                    TweenService:Create(knob, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Position = UDim2.new(default and 0.5 or 0, 0, 0, 0), BackgroundColor3 = default and DEFAULT_THEME.Accent or DEFAULT_THEME.TextDim}):Play()
                     if callback then callback(default) end
                 end
             end)
@@ -404,26 +403,36 @@ function SmileUILib:CreateWindow(title, width, height)
         end
         function tabAPI:AddSlider(name, min, max, default, callback)
             local frame = Instance.new("Frame")
-            frame.Size = UDim2.new(1, -8, 0, 58)
+            frame.Size = UDim2.new(1, -8, 0, 36)
             frame.BackgroundColor3 = DEFAULT_THEME.AccentVeryDark
             frame.Parent = page
             local c = Instance.new("UICorner")
             c.CornerRadius = UDim.new(0, 5)
             c.Parent = frame
             local lbl = Instance.new("TextLabel")
-            lbl.Size = UDim2.new(1, -20, 0, 24)
-            lbl.Position = UDim2.new(0, 12, 0, 6)
+            lbl.Size = UDim2.new(0.5, 0, 1, 0)
+            lbl.Position = UDim2.new(0, 12, 0, 0)
             lbl.BackgroundTransparency = 1
-            lbl.Text = name .. ": " .. default
+            lbl.Text = name
             lbl.TextColor3 = DEFAULT_THEME.Text
             lbl.Font = DEFAULT_THEME.Font
             lbl.TextSize = 14
             lbl.TextXAlignment = Enum.TextXAlignment.Left
             lbl.TextTruncate = Enum.TextTruncate.AtEnd
             lbl.Parent = frame
+            local valueLbl = Instance.new("TextLabel")
+            valueLbl.Size = UDim2.new(0, 40, 1, 0)
+            valueLbl.Position = UDim2.new(0.5, 0, 0, 0)
+            valueLbl.BackgroundTransparency = 1
+            valueLbl.Text = tostring(default)
+            valueLbl.TextColor3 = DEFAULT_THEME.TextDim
+            valueLbl.Font = DEFAULT_THEME.Font
+            valueLbl.TextSize = 14
+            valueLbl.TextXAlignment = Enum.TextXAlignment.Left
+            valueLbl.Parent = frame
             local track = Instance.new("Frame")
-            track.Size = UDim2.new(1, -24, 0, 8)
-            track.Position = UDim2.new(0, 12, 0, 38)
+            track.Size = UDim2.new(0.4, 0, 0, 8)
+            track.Position = UDim2.new(0.6, 0, 0.5, -4)
             track.BackgroundColor3 = DEFAULT_THEME.AccentDarker
             track.Parent = frame
             local tc = Instance.new("UICorner")
@@ -463,7 +472,7 @@ function SmileUILib:CreateWindow(title, width, height)
                 )
                 fill.Size = UDim2.new(rel, 0, 1, 0)
                 local value = math.round(min + (max - min) * rel)
-                lbl.Text = name .. ": " .. value
+                valueLbl.Text = tostring(value)
                 if callback then callback(value) end
             end)
             return frame
@@ -545,10 +554,10 @@ function SmileUILib:CreateWindow(title, width, height)
                 dropFrame.Size = UDim2.new(0, selected.AbsoluteSize.X, 0, dropLayout.AbsoluteContentSize.Y + 8)
             end)
             selected:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-                dropFrame.Position = UDim2.new(0, selected.AbsolutePosition.X - main.AbsolutePosition.X, 0, selected.AbsolutePosition.Y - main.AbsolutePosition.Y + selected.AbsoluteSize.Y)
+                dropFrame.Position = UDim2.new(0, selected.AbsolutePosition.X, 0, selected.AbsolutePosition.Y + selected.AbsoluteSize.Y)
             end)
             dropFrame.Size = UDim2.new(0, selected.AbsoluteSize.X, 0, dropLayout.AbsoluteContentSize.Y + 8)
-            dropFrame.Position = UDim2.new(0, selected.AbsolutePosition.X - main.AbsolutePosition.X, 0, selected.AbsolutePosition.Y - main.AbsolutePosition.Y + selected.AbsoluteSize.Y)
+            dropFrame.Position = UDim2.new(0, selected.AbsolutePosition.X, 0, selected.AbsolutePosition.Y + selected.AbsoluteSize.Y)
             selected.MouseButton1Click:Connect(function()
                 dropFrame.Visible = not dropFrame.Visible
             end)
