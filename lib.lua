@@ -10,7 +10,6 @@ local SmileUILib = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
-local Lighting = game:GetService("Lighting")
 local DEFAULT_THEME = {
     Background = Color3.fromRGB(25, 25, 25),
     Header = Color3.fromRGB(35, 35, 35),
@@ -28,18 +27,10 @@ local DEFAULT_THEME = {
     BackgroundTransparency = 0.6,
     HeaderTransparency = 0.5,
     ElementTransparency = 0.4,
-    ShadowColor = Color3.fromRGB(0, 0, 0),
-    ShadowTransparency = 0.5,
-    ShadowOffset = Vector2.new(4, 4)
+    MacRed = Color3.fromRGB(255, 69, 58),
+    MacYellow = Color3.fromRGB(255, 214, 10),
+    MacGreen = Color3.fromRGB(50, 215, 75)
 }
-local blurEffect
-local function initBlur()
-    if not blurEffect then
-        blurEffect = Instance.new("BlurEffect")
-        blurEffect.Size = 24
-        blurEffect.Parent = Lighting
-    end
-end
 local notifContainer
 local function initNotifications()
     if notifContainer then return end
@@ -65,31 +56,13 @@ local function initNotifications()
 end
 function SmileUILib:Notify(title, message, duration)
     initNotifications()
-    initBlur()
     duration = duration or 3.7
-    local notifWrapper = Instance.new("Frame")
-    notifWrapper.BackgroundTransparency = 1
-    notifWrapper.Size = UDim2.new(0, 0, 0, 0)
-    notifWrapper.ZIndex = 999999
-    notifWrapper.Parent = notifContainer
-    local shadow = Instance.new("Frame")
-    shadow.BackgroundColor3 = DEFAULT_THEME.ShadowColor
-    shadow.BackgroundTransparency = 1
-    shadow.Size = UDim2.new(1, 0, 1, 0)
-    shadow.Position = UDim2.new(0, DEFAULT_THEME.ShadowOffset.X, 0, DEFAULT_THEME.ShadowOffset.Y)
-    shadow.ZIndex = 1
-    local scorner = Instance.new("UICorner")
-    scorner.CornerRadius = UDim.new(0, 8)
-    scorner.Parent = shadow
-    shadow.Parent = notifWrapper
     local notif = Instance.new("Frame")
     notif.BackgroundColor3 = DEFAULT_THEME.Background
     notif.BackgroundTransparency = 1
     notif.BorderSizePixel = 0
-    notif.Size = UDim2.new(1, 0, 1, 0)
-    notif.Position = UDim2.new(0, 0, 0, 0)
-    notif.ZIndex = 2
-    notif.Parent = notifWrapper
+    notif.ZIndex = 999999
+    notif.Parent = notifContainer
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = notif
@@ -97,7 +70,14 @@ function SmileUILib:Notify(title, message, duration)
     stroke.Color = DEFAULT_THEME.StrokeColor
     stroke.Thickness = 1
     stroke.Transparency = 1
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     stroke.Parent = notif
+    local gradient = Instance.new("UIGradient")
+    gradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(1, 0.2)
+    }
+    gradient.Parent = notif
     local header = Instance.new("Frame")
     header.Size = UDim2.new(1, 0, 0, 34)
     header.BackgroundColor3 = DEFAULT_THEME.Header
@@ -135,61 +115,40 @@ function SmileUILib:Notify(title, message, duration)
     content.Parent = notif
     local textHeight = content.TextBounds.Y
     local notifHeight = 36 + textHeight + 10
-    notifWrapper.Size = UDim2.new(0, 0, 0, notifHeight)
-    local ti = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    TweenService:Create(notifWrapper, ti, {Size = UDim2.new(0, 400, 0, notifHeight)}):Play()
+    notif.Size = UDim2.new(0, 400, 0, notifHeight)
+    local ti = TweenInfo.new(0.5, Enum.EasingStyle.Expo, Enum.EasingDirection.Out)
     TweenService:Create(notif, ti, {BackgroundTransparency = DEFAULT_THEME.BackgroundTransparency}):Play()
-    TweenService:Create(shadow, ti, {BackgroundTransparency = DEFAULT_THEME.ShadowTransparency}):Play()
     TweenService:Create(header, ti, {BackgroundTransparency = DEFAULT_THEME.HeaderTransparency}):Play()
     TweenService:Create(titleLbl, ti, {TextTransparency = 0}):Play()
     TweenService:Create(content, ti, {TextTransparency = 0}):Play()
     TweenService:Create(stroke, ti, {Transparency = DEFAULT_THEME.StrokeTransparency}):Play()
     task.delay(duration, function()
-        local out_ti = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-        TweenService:Create(notifWrapper, out_ti, {Size = UDim2.new(0, 0, 0, notifHeight)}):Play()
+        local out_ti = TweenInfo.new(0.5, Enum.EasingStyle.Expo, Enum.EasingDirection.In)
         TweenService:Create(notif, out_ti, {BackgroundTransparency = 1}):Play()
-        TweenService:Create(shadow, out_ti, {BackgroundTransparency = 1}):Play()
         TweenService:Create(header, out_ti, {BackgroundTransparency = 1}):Play()
         TweenService:Create(titleLbl, out_ti, {TextTransparency = 1}):Play()
         TweenService:Create(content, out_ti, {TextTransparency = 1}):Play()
         local out = TweenService:Create(stroke, out_ti, {Transparency = 1})
         out:Play()
-        out.Completed:Connect(function() notifWrapper:Destroy() end)
+        out.Completed:Connect(function() notif:Destroy() end)
     end)
 end
 function SmileUILib:CreateWindow(title, width, height)
-    initBlur()
     width = width or 580
     height = height or 420
     local screen = Instance.new("ScreenGui")
     screen.Name = "SmileUI_" .. math.floor(tick()*1000)
     screen.ResetOnSpawn = false
     screen.Parent = CoreGui
-    local mainWrapper = Instance.new("Frame")
-    mainWrapper.BackgroundTransparency = 1
-    mainWrapper.Size = UDim2.new(0, 0, 0, 0)
-    mainWrapper.Position = UDim2.new(0.5, 0, 0.5, 0)
-    mainWrapper.Parent = screen
-    local shadow = Instance.new("Frame")
-    shadow.BackgroundColor3 = DEFAULT_THEME.ShadowColor
-    shadow.BackgroundTransparency = 1
-    shadow.Size = UDim2.new(1, 0, 1, 0)
-    shadow.Position = UDim2.new(0, DEFAULT_THEME.ShadowOffset.X, 0, DEFAULT_THEME.ShadowOffset.Y)
-    shadow.ZIndex = 1
-    local scorner = Instance.new("UICorner")
-    scorner.CornerRadius = UDim.new(0, 10)
-    scorner.Parent = shadow
-    shadow.Parent = mainWrapper
     local main = Instance.new("Frame")
     main.Name = "Main"
-    main.Size = UDim2.new(1, 0, 1, 0)
-    main.Position = UDim2.new(0, 0, 0, 0)
+    main.Size = UDim2.new(0, width, 0, height)
+    main.Position = UDim2.new(0.5, -width/2, 0.5, -height/2)
     main.BackgroundColor3 = DEFAULT_THEME.Background
-    main.BackgroundTransparency = 1
+    main.BackgroundTransparency = DEFAULT_THEME.BackgroundTransparency
     main.Active = true
     main.Draggable = true
-    main.ZIndex = 2
-    main.Parent = mainWrapper
+    main.Parent = screen
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 10)
     corner.Parent = main
@@ -197,55 +156,76 @@ function SmileUILib:CreateWindow(title, width, height)
     stroke.Color = DEFAULT_THEME.StrokeColor
     stroke.Thickness = DEFAULT_THEME.StrokeThickness
     stroke.Transparency = DEFAULT_THEME.StrokeTransparency
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     stroke.Parent = main
+    local gradient = Instance.new("UIGradient")
+    gradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(1, 0.1)
+    }
+    gradient.Parent = main
     local header = Instance.new("Frame")
     header.Size = UDim2.new(1, 0, 0, 44)
     header.BackgroundColor3 = DEFAULT_THEME.Header
-    header.BackgroundTransparency = 1
+    header.BackgroundTransparency = DEFAULT_THEME.HeaderTransparency
     header.BorderSizePixel = 0
     header.Parent = main
     local hcorner = Instance.new("UICorner")
     hcorner.CornerRadius = UDim.new(0, 10)
     hcorner.Parent = header
+    local hgradient = Instance.new("UIGradient")
+    hgradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(1, 0.2)
+    }
+    hgradient.Parent = header
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Size = UDim2.new(1, -120, 1, 0)
-    titleLabel.Position = UDim2.new(0, 16, 0, 0)
+    titleLabel.Position = UDim2.new(0.5, 0, 0, 0)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Text = title or "SMILE UI"
     titleLabel.TextColor3 = DEFAULT_THEME.Text
     titleLabel.Font = DEFAULT_THEME.Font
     titleLabel.TextSize = 21
-    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Center
     titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
     titleLabel.Parent = header
-    local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 40, 0, 40)
-    closeBtn.Position = UDim2.new(1, -44, 0, 2)
-    closeBtn.BackgroundTransparency = 1
-    closeBtn.Text = "×"
-    closeBtn.TextColor3 = DEFAULT_THEME.Text
-    closeBtn.Font = DEFAULT_THEME.Font
-    closeBtn.TextSize = 28
-    closeBtn.Parent = header
-    local minBtn = Instance.new("TextButton")
-    minBtn.Size = UDim2.new(0, 40, 0, 40)
-    minBtn.Position = UDim2.new(1, -88, 0, 2)
-    minBtn.BackgroundTransparency = 1
-    minBtn.Text = "−"
-    minBtn.TextColor3 = DEFAULT_THEME.Text
-    minBtn.Font = DEFAULT_THEME.Font
-    minBtn.TextSize = 34
-    minBtn.Parent = header
-    closeBtn.MouseButton1Click:Connect(function()
-        local closeTi = TweenInfo.new(0.6, Enum.EasingStyle.Expo, Enum.EasingDirection.In)
-        TweenService:Create(mainWrapper, closeTi, {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)}):Play()
-        TweenService:Create(main, closeTi, {BackgroundTransparency = 1}):Play()
-        TweenService:Create(shadow, closeTi, {BackgroundTransparency = 1}):Play()
-        TweenService:Create(header, closeTi, {BackgroundTransparency = 1}):Play()
-        task.delay(0.6, function()
+    local dotsFrame = Instance.new("Frame")
+    dotsFrame.Size = UDim2.new(0, 60, 1, 0)
+    dotsFrame.Position = UDim2.new(0, 12, 0, 0)
+    dotsFrame.BackgroundTransparency = 1
+    dotsFrame.Parent = header
+    local dotLayout = Instance.new("UIListLayout")
+    dotLayout.FillDirection = Enum.FillDirection.Horizontal
+    dotLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    dotLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    dotLayout.Padding = UDim.new(0, 6)
+    dotLayout.Parent = dotsFrame
+    local closeDot = Instance.new("Frame")
+    closeDot.Size = UDim2.new(0, 12, 0, 12)
+    closeDot.BackgroundColor3 = DEFAULT_THEME.MacRed
+    closeDot.Parent = dotsFrame
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(1, 0)
+    closeCorner.Parent = closeDot
+    local minDot = Instance.new("Frame")
+    minDot.Size = UDim2.new(0, 12, 0, 12)
+    minDot.BackgroundColor3 = DEFAULT_THEME.MacYellow
+    minDot.Parent = dotsFrame
+    local minCorner = Instance.new("UICorner")
+    minCorner.CornerRadius = UDim.new(1, 0)
+    minCorner.Parent = minDot
+    local fullDot = Instance.new("Frame")
+    fullDot.Size = UDim2.new(0, 12, 0, 12)
+    fullDot.BackgroundColor3 = DEFAULT_THEME.MacGreen
+    fullDot.Parent = dotsFrame
+    local fullCorner = Instance.new("UICorner")
+    fullCorner.CornerRadius = UDim.new(1, 0)
+    fullCorner.Parent = fullDot
+    closeDot.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
             screen:Destroy()
-            if blurEffect then blurEffect:Destroy() end
-        end)
+        end
     end)
     local icon = Instance.new("Frame")
     icon.Size = UDim2.new(0, 56, 0, 56)
@@ -265,10 +245,12 @@ function SmileUILib:CreateWindow(title, width, height)
     iconText.Font = DEFAULT_THEME.Font
     iconText.TextSize = 36
     iconText.Parent = icon
-    minBtn.MouseButton1Click:Connect(function()
-        main.Visible = false
-        icon.Position = UDim2.new(0, main.AbsolutePosition.X + main.AbsoluteSize.X - 56, 0, main.AbsolutePosition.Y)
-        icon.Visible = true
+    minDot.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            main.Visible = false
+            icon.Position = UDim2.new(0, main.AbsolutePosition.X + main.AbsoluteSize.X - 56, 0, main.AbsolutePosition.Y)
+            icon.Visible = true
+        end
     end)
     iconText.MouseButton1Click:Connect(function()
         icon.Visible = false
@@ -328,30 +310,32 @@ function SmileUILib:CreateWindow(title, width, height)
         end)
         tabBtn.MouseEnter:Connect(function()
             if activePage ~= page then
-                TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
-                    BackgroundColor3 = DEFAULT_THEME.AccentDarker
+                TweenService:Create(tabBtn, TweenInfo.new(0.3, Enum.EasingStyle.Expo), {
+                    BackgroundColor3 = DEFAULT_THEME.AccentDarker,
+                    BackgroundTransparency = DEFAULT_THEME.ElementTransparency - 0.1
                 }):Play()
             end
         end)
         tabBtn.MouseLeave:Connect(function()
             if activePage ~= page then
-                TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
-                    BackgroundColor3 = DEFAULT_THEME.AccentVeryDark
+                TweenService:Create(tabBtn, TweenInfo.new(0.3, Enum.EasingStyle.Expo), {
+                    BackgroundColor3 = DEFAULT_THEME.AccentVeryDark,
+                    BackgroundTransparency = DEFAULT_THEME.ElementTransparency
                 }):Play()
             end
         end)
         tabBtn.MouseButton1Click:Connect(function()
             if activePage then
-                TweenService:Create(activePage, TweenInfo.new(0.3, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {CanvasPosition = Vector2.new(0, 0)}):Play()
                 activePage.Visible = false
             end
             page.Visible = true
             activePage = page
             for _, b in tabs:GetChildren() do
                 if b:IsA("TextButton") then
-                    TweenService:Create(b, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
+                    TweenService:Create(b, TweenInfo.new(0.3, Enum.EasingStyle.Expo), {
                         BackgroundColor3 = (b == tabBtn) and DEFAULT_THEME.AccentDark or DEFAULT_THEME.AccentVeryDark,
-                        TextColor3 = (b == tabBtn) and DEFAULT_THEME.Text or DEFAULT_THEME.TextDim
+                        TextColor3 = (b == tabBtn) and DEFAULT_THEME.Text or DEFAULT_THEME.TextDim,
+                        BackgroundTransparency = (b == tabBtn) and DEFAULT_THEME.ElementTransparency - 0.2 or DEFAULT_THEME.ElementTransparency
                     }):Play()
                 end
             end
@@ -359,6 +343,7 @@ function SmileUILib:CreateWindow(title, width, height)
         if not activePage then
             tabBtn.BackgroundColor3 = DEFAULT_THEME.AccentDark
             tabBtn.TextColor3 = DEFAULT_THEME.Text
+            tabBtn.BackgroundTransparency = DEFAULT_THEME.ElementTransparency - 0.2
             page.Visible = true
             activePage = page
         end
@@ -408,11 +393,11 @@ function SmileUILib:CreateWindow(title, width, height)
             local c = Instance.new("UICorner")
             c.CornerRadius = UDim.new(0, 5)
             c.Parent = frame
-            local frameStroke = Instance.new("UIStroke")
-            frameStroke.Color = DEFAULT_THEME.StrokeColor
-            frameStroke.Thickness = 0.5
-            frameStroke.Transparency = 0.9
-            frameStroke.Parent = frame
+            local fstroke = Instance.new("UIStroke")
+            fstroke.Color = DEFAULT_THEME.StrokeColor
+            fstroke.Thickness = 0.5
+            fstroke.Transparency = 0.9
+            fstroke.Parent = frame
             local lbl = Instance.new("TextLabel")
             lbl.Size = UDim2.new(0.68, 0, 1, 0)
             lbl.Position = UDim2.new(0, 14, 0, 0)
@@ -428,7 +413,6 @@ function SmileUILib:CreateWindow(title, width, height)
             track.Size = UDim2.new(0, 50, 0, 24)
             track.Position = UDim2.new(1, -62, 0.5, -12)
             track.BackgroundColor3 = DEFAULT_THEME.AccentDarker
-            track.BackgroundTransparency = 0.6
             track.Parent = frame
             local tc = Instance.new("UICorner")
             tc.CornerRadius = UDim.new(1, 0)
@@ -443,14 +427,8 @@ function SmileUILib:CreateWindow(title, width, height)
             kc.Parent = knob
             frame.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    TweenService:Create(frame, TweenInfo.new(0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(1, -10, 0, 34)}):Play()
-                end
-            end)
-            frame.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    TweenService:Create(frame, TweenInfo.new(0.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(1, -8, 0, 36)}):Play()
                     default = not default
-                    TweenService:Create(knob, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {Position = UDim2.new(default and 0.5 or 0, 0, 0, 0), BackgroundColor3 = default and DEFAULT_THEME.Accent or DEFAULT_THEME.TextDim}):Play()
+                    TweenService:Create(knob, TweenInfo.new(0.3, Enum.EasingStyle.Expo), {Position = UDim2.new(default and 0.5 or 0, 0, 0, 0), BackgroundColor3 = default and DEFAULT_THEME.Accent or DEFAULT_THEME.TextDim}):Play()
                     if callback then callback(default) end
                 end
             end)
@@ -470,28 +448,24 @@ function SmileUILib:CreateWindow(title, width, height)
             local c = Instance.new("UICorner")
             c.CornerRadius = UDim.new(0, 7)
             c.Parent = btn
-            local btnStroke = Instance.new("UIStroke")
-            btnStroke.Color = DEFAULT_THEME.StrokeColor
-            btnStroke.Thickness = 0.5
-            btnStroke.Transparency = 0.9
-            btnStroke.Parent = btn
-            btn.MouseButton1Down:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(1, -10, 0, 38)}):Play()
-            end)
-            btn.MouseButton1Up:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(1, -8, 0, 40)}):Play()
-            end)
+            local bstroke = Instance.new("UIStroke")
+            bstroke.Color = DEFAULT_THEME.StrokeColor
+            bstroke.Thickness = 0.5
+            bstroke.Transparency = 0.9
+            bstroke.Parent = btn
             btn.MouseButton1Click:Connect(function()
                 if callback then callback() end
             end)
             btn.MouseEnter:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
-                    BackgroundColor3 = DEFAULT_THEME.Accent
+                TweenService:Create(btn, TweenInfo.new(0.3, Enum.EasingStyle.Expo), {
+                    BackgroundColor3 = DEFAULT_THEME.Accent,
+                    BackgroundTransparency = DEFAULT_THEME.ElementTransparency - 0.1
                 }):Play()
             end)
             btn.MouseLeave:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
-                    BackgroundColor3 = DEFAULT_THEME.AccentDarker
+                TweenService:Create(btn, TweenInfo.new(0.3, Enum.EasingStyle.Expo), {
+                    BackgroundColor3 = DEFAULT_THEME.AccentDarker,
+                    BackgroundTransparency = DEFAULT_THEME.ElementTransparency
                 }):Play()
             end)
             return btn
@@ -505,11 +479,11 @@ function SmileUILib:CreateWindow(title, width, height)
             local c = Instance.new("UICorner")
             c.CornerRadius = UDim.new(0, 5)
             c.Parent = frame
-            local frameStroke = Instance.new("UIStroke")
-            frameStroke.Color = DEFAULT_THEME.StrokeColor
-            frameStroke.Thickness = 0.5
-            frameStroke.Transparency = 0.9
-            frameStroke.Parent = frame
+            local fstroke = Instance.new("UIStroke")
+            fstroke.Color = DEFAULT_THEME.StrokeColor
+            fstroke.Thickness = 0.5
+            fstroke.Transparency = 0.9
+            fstroke.Parent = frame
             local lbl = Instance.new("TextLabel")
             lbl.Size = UDim2.new(1, -20, 0, 24)
             lbl.Position = UDim2.new(0, 12, 0, 6)
@@ -535,7 +509,6 @@ function SmileUILib:CreateWindow(title, width, height)
             track.Size = UDim2.new(1, -24, 0, 8)
             track.Position = UDim2.new(0, 12, 0, 38)
             track.BackgroundColor3 = DEFAULT_THEME.AccentDarker
-            track.BackgroundTransparency = 0.6
             track.Parent = frame
             local tc = Instance.new("UICorner")
             tc.CornerRadius = UDim.new(1, 0)
@@ -572,7 +545,7 @@ function SmileUILib:CreateWindow(title, width, height)
                     (UserInputService:GetMouseLocation().X - track.AbsolutePosition.X) / track.AbsoluteSize.X,
                     0, 1
                 )
-                TweenService:Create(fill, TweenInfo.new(0.1), {Size = UDim2.new(rel, 0, 1, 0)}):Play()
+                fill.Size = UDim2.new(rel, 0, 1, 0)
                 local value = math.round(min + (max - min) * rel)
                 valueLbl.Text = tostring(value)
                 if callback then callback(value) end
@@ -588,11 +561,11 @@ function SmileUILib:CreateWindow(title, width, height)
             local c = Instance.new("UICorner")
             c.CornerRadius = UDim.new(0, 5)
             c.Parent = frame
-            local frameStroke = Instance.new("UIStroke")
-            frameStroke.Color = DEFAULT_THEME.StrokeColor
-            frameStroke.Thickness = 0.5
-            frameStroke.Transparency = 0.9
-            frameStroke.Parent = frame
+            local fstroke = Instance.new("UIStroke")
+            fstroke.Color = DEFAULT_THEME.StrokeColor
+            fstroke.Thickness = 0.5
+            fstroke.Transparency = 0.9
+            fstroke.Parent = frame
             local lbl = Instance.new("TextLabel")
             lbl.Size = UDim2.new(0.45, 0, 1, 0)
             lbl.Position = UDim2.new(0, 14, 0, 0)
@@ -608,7 +581,6 @@ function SmileUILib:CreateWindow(title, width, height)
             selected.Size = UDim2.new(0.48, 0, 0, 32)
             selected.Position = UDim2.new(0.5, 0, 0, 4)
             selected.BackgroundColor3 = DEFAULT_THEME.AccentDarker
-            selected.BackgroundTransparency = 0.6
             selected.Text = default or options[1]
             selected.TextColor3 = DEFAULT_THEME.Text
             selected.Font = DEFAULT_THEME.Font
@@ -618,12 +590,6 @@ function SmileUILib:CreateWindow(title, width, height)
             local sc = Instance.new("UICorner")
             sc.CornerRadius = UDim.new(0, 5)
             sc.Parent = selected
-            selected.MouseButton1Down:Connect(function()
-                TweenService:Create(selected, TweenInfo.new(0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0.48, -2, 0, 30)}):Play()
-            end)
-            selected.MouseButton1Up:Connect(function()
-                TweenService:Create(selected, TweenInfo.new(0.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0.48, 0, 0, 32)}):Play()
-            end)
             local dropFrame = Instance.new("Frame")
             dropFrame.BackgroundColor3 = DEFAULT_THEME.Background
             dropFrame.BackgroundTransparency = DEFAULT_THEME.BackgroundTransparency
@@ -646,7 +612,6 @@ function SmileUILib:CreateWindow(title, width, height)
                 local optBtn = Instance.new("TextButton")
                 optBtn.Size = UDim2.new(1, 0, 0, 28)
                 optBtn.BackgroundColor3 = DEFAULT_THEME.AccentDarker
-                optBtn.BackgroundTransparency = 0.6
                 optBtn.Text = v
                 optBtn.TextColor3 = DEFAULT_THEME.Text
                 optBtn.Font = DEFAULT_THEME.Font
@@ -661,10 +626,10 @@ function SmileUILib:CreateWindow(title, width, height)
                     if callback then callback(v) end
                 end)
                 optBtn.MouseEnter:Connect(function()
-                    TweenService:Create(optBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {BackgroundColor3 = DEFAULT_THEME.Accent}):Play()
+                    TweenService:Create(optBtn, TweenInfo.new(0.3, Enum.EasingStyle.Expo), {BackgroundColor3 = DEFAULT_THEME.Accent}):Play()
                 end)
                 optBtn.MouseLeave:Connect(function()
-                    TweenService:Create(optBtn, TweenInfo.new(0.25, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {BackgroundColor3 = DEFAULT_THEME.AccentDarker}):Play()
+                    TweenService:Create(optBtn, TweenInfo.new(0.3, Enum.EasingStyle.Expo), {BackgroundColor3 = DEFAULT_THEME.AccentDarker}):Play()
                 end)
             end
             dropLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -689,11 +654,11 @@ function SmileUILib:CreateWindow(title, width, height)
             local c = Instance.new("UICorner")
             c.CornerRadius = UDim.new(0, 5)
             c.Parent = frame
-            local frameStroke = Instance.new("UIStroke")
-            frameStroke.Color = DEFAULT_THEME.StrokeColor
-            frameStroke.Thickness = 0.5
-            frameStroke.Transparency = 0.9
-            frameStroke.Parent = frame
+            local fstroke = Instance.new("UIStroke")
+            fstroke.Color = DEFAULT_THEME.StrokeColor
+            fstroke.Thickness = 0.5
+            fstroke.Transparency = 0.9
+            fstroke.Parent = frame
             local lbl = Instance.new("TextLabel")
             lbl.Size = UDim2.new(0.62, 0, 1, 0)
             lbl.Position = UDim2.new(0, 14, 0, 0)
@@ -709,7 +674,6 @@ function SmileUILib:CreateWindow(title, width, height)
             btn.Size = UDim2.new(0, 100, 0, 28)
             btn.Position = UDim2.new(1, -112, 0.5, -14)
             btn.BackgroundColor3 = DEFAULT_THEME.AccentDarker
-            btn.BackgroundTransparency = 0.6
             btn.Text = defaultKey.Name
             btn.TextColor3 = DEFAULT_THEME.Text
             btn.Font = DEFAULT_THEME.Font
@@ -719,12 +683,6 @@ function SmileUILib:CreateWindow(title, width, height)
             local bc = Instance.new("UICorner")
             bc.CornerRadius = UDim.new(0, 5)
             bc.Parent = btn
-            btn.MouseButton1Down:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, 98, 0, 26)}):Play()
-            end)
-            btn.MouseButton1Up:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, 100, 0, 28)}):Play()
-            end)
             local listening = false
             btn.MouseButton1Click:Connect(function()
                 listening = true
@@ -742,11 +700,12 @@ function SmileUILib:CreateWindow(title, width, height)
         end
         return tabAPI
     end
-    local openTi = TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    TweenService:Create(mainWrapper, openTi, {Size = UDim2.new(0, width, 0, height), Position = UDim2.new(0.5, -width/2, 0.5, -height/2)}):Play()
-    TweenService:Create(main, openTi, {BackgroundTransparency = DEFAULT_THEME.BackgroundTransparency}):Play()
-    TweenService:Create(shadow, openTi, {BackgroundTransparency = DEFAULT_THEME.ShadowTransparency}):Play()
-    TweenService:Create(header, openTi, {BackgroundTransparency = DEFAULT_THEME.HeaderTransparency}):Play()
+    main.Size = UDim2.new(0, 0, 0, 0)
+    main.BackgroundTransparency = 1
+    TweenService:Create(main, TweenInfo.new(0.8, Enum.EasingStyle.Expo, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, width, 0, height),
+        BackgroundTransparency = DEFAULT_THEME.BackgroundTransparency
+    }):Play()
     return window
 end
 return SmileUILib
