@@ -11,11 +11,11 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 
--- Updated theme for glassmorphism inspired by macOS
+-- Updated theme for advanced glassmorphism with enhanced blur simulation
 local GLASS_THEME = {
     Background = Color3.fromRGB(30, 30, 30), -- Base dark for glass
     GlassBackground = Color3.fromRGB(45, 45, 45), -- Semi-transparent glass
-    GlassTransparency = 0.7, -- For frosted glass effect
+    GlassTransparency = 0.5, -- Reduced for better visibility
     Header = Color3.fromRGB(35, 35, 35), -- Darker header
     Accent = Color3.fromRGB(0, 122, 255),
     AccentDark = Color3.fromRGB(0, 100, 200),
@@ -26,27 +26,51 @@ local GLASS_THEME = {
     StrokeColor = Color3.fromRGB(80, 80, 80),
     CornerRadius = UDim.new(0, 12), -- Softer corners like macOS
     StrokeThickness = 1,
-    StrokeTransparency = 0.4, -- Less opaque for glass feel
+    StrokeTransparency = 0.3, -- Less opaque for glass feel
     Font = Enum.Font.Gotham,
-    BlurColor = Color3.fromRGB(100, 100, 100), -- For simulated blur gradients
+    BlurColor1 = Color3.fromRGB(100, 100, 100), -- For layered blur gradients
+    BlurColor2 = Color3.fromRGB(60, 60, 60),
+    FrostOverlay = Color3.fromRGB(255, 255, 255), -- White overlay for frosted effect
+    FrostTransparency = 0.9, -- High transparency for subtle frost
     DotClose = Color3.fromRGB(255, 69, 58), -- Red
     DotMinimize = Color3.fromRGB(255, 189, 46), -- Yellow
     DotFullscreen = Color3.fromRGB(39, 201, 63) -- Green
 }
 
--- Function to add a UIGradient for simulated blur/frosted glass
-local function addGlassGradient(frame)
-    local gradient = Instance.new("UIGradient")
-    gradient.Color = ColorSequence.new({
+-- Enhanced function to add layered glass gradient for better blur simulation
+local function addAdvancedGlassGradient(frame)
+    -- Layer 1: Base gradient
+    local gradient1 = Instance.new("UIGradient")
+    gradient1.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, GLASS_THEME.GlassBackground),
-        ColorSequenceKeypoint.new(0.5, GLASS_THEME.BlurColor),
+        ColorSequenceKeypoint.new(0.3, GLASS_THEME.BlurColor1),
+        ColorSequenceKeypoint.new(0.7, GLASS_THEME.BlurColor2),
         ColorSequenceKeypoint.new(1, GLASS_THEME.GlassBackground)
     })
-    gradient.Transparency = NumberSequence.new({
+    gradient1.Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, GLASS_THEME.GlassTransparency),
         NumberSequenceKeypoint.new(1, GLASS_THEME.GlassTransparency)
     })
-    gradient.Parent = frame
+    gradient1.Rotation = 45 -- Diagonal for blur feel
+    gradient1.Parent = frame
+    
+    -- Layer 2: Frosted overlay
+    local frost = Instance.new("Frame")
+    frost.Size = UDim2.new(1, 0, 1, 0)
+    frost.BackgroundColor3 = GLASS_THEME.FrostOverlay
+    frost.BackgroundTransparency = GLASS_THEME.FrostTransparency
+    frost.ZIndex = frame.ZIndex + 1
+    frost.Parent = frame
+    local frostGradient = Instance.new("UIGradient")
+    frostGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255))
+    })
+    frostGradient.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.95),
+        NumberSequenceKeypoint.new(1, 0.95)
+    })
+    frostGradient.Parent = frost
 end
 
 local notifContainer
@@ -82,7 +106,7 @@ function SmileUILib:Notify(title, message, duration)
     notif.BorderSizePixel = 0
     notif.ZIndex = 999999
     notif.Parent = notifContainer
-    addGlassGradient(notif) -- Add glass effect
+    addAdvancedGlassGradient(notif) -- Enhanced glass effect
     local corner = Instance.new("UICorner")
     corner.CornerRadius = GLASS_THEME.CornerRadius
     corner.Parent = notif
@@ -97,7 +121,7 @@ function SmileUILib:Notify(title, message, duration)
     header.BackgroundTransparency = 1
     header.BorderSizePixel = 0
     header.Parent = notif
-    addGlassGradient(header) -- Glass header
+    addAdvancedGlassGradient(header) -- Enhanced glass header
     local hcorner = Instance.new("UICorner")
     hcorner.CornerRadius = GLASS_THEME.CornerRadius
     hcorner.Parent = header
@@ -130,19 +154,23 @@ function SmileUILib:Notify(title, message, duration)
     local textHeight = content.TextBounds.Y
     local notifHeight = 36 + textHeight + 10
     notif.Size = UDim2.new(0, 400, 0, notifHeight)
-    local ti = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out) -- Smoother animation
+    local ti = TweenInfo.new(0.6, Enum.EasingStyle.Expo, Enum.EasingDirection.Out) -- Enhanced smoother animation
     TweenService:Create(notif, ti, {BackgroundTransparency = GLASS_THEME.GlassTransparency}):Play()
     TweenService:Create(header, ti, {BackgroundTransparency = GLASS_THEME.GlassTransparency}):Play()
     TweenService:Create(titleLbl, ti, {TextTransparency = 0}):Play()
     TweenService:Create(content, ti, {TextTransparency = 0}):Play()
     TweenService:Create(stroke, ti, {Transparency = GLASS_THEME.StrokeTransparency}):Play()
+    -- Animate position for entrance
+    notif.Position = UDim2.new(1, 20, 0, notif.Position.Y.Offset)
+    TweenService:Create(notif, ti, {Position = UDim2.new(1, 0, 0, notif.Position.Y.Offset)}):Play()
     task.delay(duration, function()
-        local out_ti = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+        local out_ti = TweenInfo.new(0.6, Enum.EasingStyle.Expo, Enum.EasingDirection.In)
         TweenService:Create(notif, out_ti, {BackgroundTransparency = 1}):Play()
         TweenService:Create(header, out_ti, {BackgroundTransparency = 1}):Play()
         TweenService:Create(titleLbl, out_ti, {TextTransparency = 1}):Play()
         TweenService:Create(content, out_ti, {TextTransparency = 1}):Play()
         local out = TweenService:Create(stroke, out_ti, {Transparency = 1})
+        TweenService:Create(notif, out_ti, {Position = UDim2.new(1, 20, 0, notif.Position.Y.Offset)}):Play()
         out:Play()
         out.Completed:Connect(function() notif:Destroy() end)
     end)
@@ -164,7 +192,7 @@ function SmileUILib:CreateWindow(title, width, height)
     main.Active = true
     main.Draggable = true
     main.Parent = screen
-    addGlassGradient(main) -- Glass effect on main
+    addAdvancedGlassGradient(main) -- Enhanced glass effect on main
     local corner = Instance.new("UICorner")
     corner.CornerRadius = GLASS_THEME.CornerRadius
     corner.Parent = main
@@ -179,7 +207,7 @@ function SmileUILib:CreateWindow(title, width, height)
     header.BackgroundTransparency = GLASS_THEME.GlassTransparency
     header.BorderSizePixel = 0
     header.Parent = main
-    addGlassGradient(header) -- Glass header
+    addAdvancedGlassGradient(header) -- Enhanced glass header
     local hcorner = Instance.new("UICorner")
     hcorner.CornerRadius = GLASS_THEME.CornerRadius
     hcorner.Parent = header
@@ -242,7 +270,7 @@ function SmileUILib:CreateWindow(title, width, height)
     icon.Visible = false
     icon.Draggable = true
     icon.Parent = screen
-    addGlassGradient(icon)
+    addAdvancedGlassGradient(icon)
     local iconCorner = Instance.new("UICorner")
     iconCorner.CornerRadius = UDim.new(1, 0)
     iconCorner.Parent = icon
@@ -291,7 +319,7 @@ function SmileUILib:CreateWindow(title, width, height)
         tabBtn.AutoButtonColor = false
         tabBtn.TextTruncate = Enum.TextTruncate.AtEnd
         tabBtn.Parent = tabs
-        addGlassGradient(tabBtn)
+        addAdvancedGlassGradient(tabBtn)
         local btnCorner = Instance.new("UICorner")
         btnCorner.CornerRadius = GLASS_THEME.CornerRadius
         btnCorner.Parent = tabBtn
@@ -312,14 +340,16 @@ function SmileUILib:CreateWindow(title, width, height)
         end)
         tabBtn.MouseEnter:Connect(function()
             if activePage ~= page then
-                TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Sine), {
-                    BackgroundTransparency = GLASS_THEME.GlassTransparency - 0.1
+                local hoverTi = TweenInfo.new(0.3, Enum.EasingStyle.Expo, Enum.EasingDirection.Out)
+                TweenService:Create(tabBtn, hoverTi, {
+                    BackgroundTransparency = GLASS_THEME.GlassTransparency - 0.15
                 }):Play()
             end
         end)
         tabBtn.MouseLeave:Connect(function()
             if activePage ~= page then
-                TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Sine), {
+                local leaveTi = TweenInfo.new(0.3, Enum.EasingStyle.Expo, Enum.EasingDirection.In)
+                TweenService:Create(tabBtn, leaveTi, {
                     BackgroundTransparency = GLASS_THEME.GlassTransparency
                 }):Play()
             end
@@ -332,7 +362,8 @@ function SmileUILib:CreateWindow(title, width, height)
             activePage = page
             for _, b in tabs:GetChildren() do
                 if b:IsA("TextButton") then
-                    TweenService:Create(b, TweenInfo.new(0.25, Enum.EasingStyle.Sine), {
+                    local clickTi = TweenInfo.new(0.3, Enum.EasingStyle.Expo)
+                    TweenService:Create(b, clickTi, {
                         BackgroundColor3 = (b == tabBtn) and GLASS_THEME.AccentDarker or GLASS_THEME.AccentVeryDark,
                         TextColor3 = (b == tabBtn) and GLASS_THEME.Text or GLASS_THEME.TextDim,
                         BackgroundTransparency = (b == tabBtn) and GLASS_THEME.GlassTransparency - 0.2 or GLASS_THEME.GlassTransparency
@@ -390,7 +421,7 @@ function SmileUILib:CreateWindow(title, width, height)
             frame.BackgroundColor3 = GLASS_THEME.AccentVeryDark
             frame.BackgroundTransparency = GLASS_THEME.GlassTransparency
             frame.Parent = page
-            addGlassGradient(frame)
+            addAdvancedGlassGradient(frame)
             local c = Instance.new("UICorner")
             c.CornerRadius = GLASS_THEME.CornerRadius
             c.Parent = frame
@@ -411,7 +442,7 @@ function SmileUILib:CreateWindow(title, width, height)
             track.BackgroundColor3 = default and GLASS_THEME.Accent or GLASS_THEME.AccentDarker
             track.BackgroundTransparency = GLASS_THEME.GlassTransparency
             track.Parent = frame
-            addGlassGradient(track)
+            addAdvancedGlassGradient(track)
             local tc = Instance.new("UICorner")
             tc.CornerRadius = UDim.new(1, 0)
             tc.Parent = track
@@ -421,15 +452,16 @@ function SmileUILib:CreateWindow(title, width, height)
             knob.BackgroundColor3 = GLASS_THEME.Text
             knob.BackgroundTransparency = GLASS_THEME.GlassTransparency - 0.3
             knob.Parent = track
-            addGlassGradient(knob)
+            addAdvancedGlassGradient(knob)
             local kc = Instance.new("UICorner")
             kc.CornerRadius = UDim.new(1, 0)
             kc.Parent = knob
             frame.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     default = not default
-                    TweenService:Create(knob, TweenInfo.new(0.25, Enum.EasingStyle.Sine), {Position = UDim2.new(default and 1 or 0, -24, 0, 0)}):Play()
-                    TweenService:Create(track, TweenInfo.new(0.25, Enum.EasingStyle.Sine), {BackgroundColor3 = default and GLASS_THEME.Accent or GLASS_THEME.AccentDarker}):Play()
+                    local toggleTi = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                    TweenService:Create(knob, toggleTi, {Position = UDim2.new(default and 1 or 0, -24, 0, 0)}):Play()
+                    TweenService:Create(track, toggleTi, {BackgroundColor3 = default and GLASS_THEME.Accent or GLASS_THEME.AccentDarker}):Play()
                     if callback then callback(default) end
                 end
             end)
@@ -446,7 +478,7 @@ function SmileUILib:CreateWindow(title, width, height)
             btn.TextSize = 15
             btn.TextTruncate = Enum.TextTruncate.AtEnd
             btn.Parent = page
-            addGlassGradient(btn)
+            addAdvancedGlassGradient(btn)
             local c = Instance.new("UICorner")
             c.CornerRadius = GLASS_THEME.CornerRadius
             c.Parent = btn
@@ -454,12 +486,14 @@ function SmileUILib:CreateWindow(title, width, height)
                 if callback then callback() end
             end)
             btn.MouseEnter:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Sine), {
+                local enterTi = TweenInfo.new(0.3, Enum.EasingStyle.Expo, Enum.EasingDirection.Out)
+                TweenService:Create(btn, enterTi, {
                     BackgroundTransparency = GLASS_THEME.GlassTransparency - 0.2
                 }):Play()
             end)
             btn.MouseLeave:Connect(function()
-                TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Sine), {
+                local leaveTi = TweenInfo.new(0.3, Enum.EasingStyle.Expo, Enum.EasingDirection.In)
+                TweenService:Create(btn, leaveTi, {
                     BackgroundTransparency = GLASS_THEME.GlassTransparency
                 }):Play()
             end)
@@ -471,7 +505,7 @@ function SmileUILib:CreateWindow(title, width, height)
             frame.BackgroundColor3 = GLASS_THEME.AccentVeryDark
             frame.BackgroundTransparency = GLASS_THEME.GlassTransparency
             frame.Parent = page
-            addGlassGradient(frame)
+            addAdvancedGlassGradient(frame)
             local c = Instance.new("UICorner")
             c.CornerRadius = GLASS_THEME.CornerRadius
             c.Parent = frame
@@ -492,7 +526,7 @@ function SmileUILib:CreateWindow(title, width, height)
             track.BackgroundColor3 = GLASS_THEME.AccentDarker
             track.BackgroundTransparency = GLASS_THEME.GlassTransparency
             track.Parent = frame
-            addGlassGradient(track)
+            addAdvancedGlassGradient(track)
             local tc = Instance.new("UICorner")
             tc.CornerRadius = UDim.new(1, 0)
             tc.Parent = track
@@ -501,7 +535,7 @@ function SmileUILib:CreateWindow(title, width, height)
             fill.BackgroundColor3 = GLASS_THEME.Accent
             fill.BackgroundTransparency = GLASS_THEME.GlassTransparency - 0.1
             fill.Parent = track
-            addGlassGradient(fill)
+            addAdvancedGlassGradient(fill)
             local fc = Instance.new("UICorner")
             fc.CornerRadius = UDim.new(1, 0)
             fc.Parent = fill
@@ -511,7 +545,7 @@ function SmileUILib:CreateWindow(title, width, height)
             knob.BackgroundColor3 = GLASS_THEME.Text
             knob.BackgroundTransparency = GLASS_THEME.GlassTransparency - 0.3
             knob.Parent = fill
-            addGlassGradient(knob)
+            addAdvancedGlassGradient(knob)
             local kc = Instance.new("UICorner")
             kc.CornerRadius = UDim.new(1, 0)
             kc.Parent = knob
@@ -532,7 +566,8 @@ function SmileUILib:CreateWindow(title, width, height)
                     (UserInputService:GetMouseLocation().X - track.AbsolutePosition.X) / track.AbsoluteSize.X,
                     0, 1
                 )
-                fill.Size = UDim2.new(rel, 0, 1, 0)
+                local slideTi = TweenInfo.new(0.1, Enum.EasingStyle.Linear)
+                TweenService:Create(fill, slideTi, {Size = UDim2.new(rel, 0, 1, 0)}):Play()
                 local value = math.round(min + (max - min) * rel)
                 lbl.Text = name .. ": " .. value
                 if callback then callback(value) end
@@ -545,7 +580,7 @@ function SmileUILib:CreateWindow(title, width, height)
             frame.BackgroundColor3 = GLASS_THEME.AccentVeryDark
             frame.BackgroundTransparency = GLASS_THEME.GlassTransparency
             frame.Parent = page
-            addGlassGradient(frame)
+            addAdvancedGlassGradient(frame)
             local c = Instance.new("UICorner")
             c.CornerRadius = GLASS_THEME.CornerRadius
             c.Parent = frame
@@ -571,7 +606,7 @@ function SmileUILib:CreateWindow(title, width, height)
             selected.TextSize = 14
             selected.TextTruncate = Enum.TextTruncate.AtEnd
             selected.Parent = frame
-            addGlassGradient(selected)
+            addAdvancedGlassGradient(selected)
             local sc = Instance.new("UICorner")
             sc.CornerRadius = GLASS_THEME.CornerRadius
             sc.Parent = selected
@@ -581,7 +616,7 @@ function SmileUILib:CreateWindow(title, width, height)
             dropFrame.Visible = false
             dropFrame.ZIndex = 2
             dropFrame.Parent = screen
-            addGlassGradient(dropFrame)
+            addAdvancedGlassGradient(dropFrame)
             local dropCorner = Instance.new("UICorner")
             dropCorner.CornerRadius = GLASS_THEME.CornerRadius
             dropCorner.Parent = dropFrame
@@ -604,7 +639,7 @@ function SmileUILib:CreateWindow(title, width, height)
                 optBtn.Font = GLASS_THEME.Font
                 optBtn.TextSize = 14
                 optBtn.Parent = dropFrame
-                addGlassGradient(optBtn)
+                addAdvancedGlassGradient(optBtn)
                 local optC = Instance.new("UICorner")
                 optC.CornerRadius = GLASS_THEME.CornerRadius
                 optC.Parent = optBtn
@@ -614,10 +649,12 @@ function SmileUILib:CreateWindow(title, width, height)
                     if callback then callback(v) end
                 end)
                 optBtn.MouseEnter:Connect(function()
-                    TweenService:Create(optBtn, TweenInfo.new(0.25, Enum.EasingStyle.Sine), {BackgroundTransparency = GLASS_THEME.GlassTransparency - 0.2}):Play()
+                    local enterTi = TweenInfo.new(0.3, Enum.EasingStyle.Expo, Enum.EasingDirection.Out)
+                    TweenService:Create(optBtn, enterTi, {BackgroundTransparency = GLASS_THEME.GlassTransparency - 0.2}):Play()
                 end)
                 optBtn.MouseLeave:Connect(function()
-                    TweenService:Create(optBtn, TweenInfo.new(0.25, Enum.EasingStyle.Sine), {BackgroundTransparency = GLASS_THEME.GlassTransparency}):Play()
+                    local leaveTi = TweenInfo.new(0.3, Enum.EasingStyle.Expo, Enum.EasingDirection.In)
+                    TweenService:Create(optBtn, leaveTi, {BackgroundTransparency = GLASS_THEME.GlassTransparency}):Play()
                 end)
             end
             dropLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -630,6 +667,14 @@ function SmileUILib:CreateWindow(title, width, height)
             dropFrame.Position = UDim2.new(0, selected.AbsolutePosition.X - main.AbsolutePosition.X, 0, selected.AbsolutePosition.Y - main.AbsolutePosition.Y + selected.AbsoluteSize.Y)
             selected.MouseButton1Click:Connect(function()
                 dropFrame.Visible = not dropFrame.Visible
+                if dropFrame.Visible then
+                    dropFrame.Size = UDim2.new(0, selected.AbsoluteSize.X, 0, 0)
+                    local openTi = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                    TweenService:Create(dropFrame, openTi, {Size = UDim2.new(0, selected.AbsoluteSize.X, 0, dropLayout.AbsoluteContentSize.Y + 8)}):Play()
+                else
+                    local closeTi = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+                    TweenService:Create(dropFrame, closeTi, {Size = UDim2.new(0, selected.AbsoluteSize.X, 0, 0)}):Play()
+                end
             end)
             return frame
         end
@@ -639,7 +684,7 @@ function SmileUILib:CreateWindow(title, width, height)
             frame.BackgroundColor3 = GLASS_THEME.AccentVeryDark
             frame.BackgroundTransparency = GLASS_THEME.GlassTransparency
             frame.Parent = page
-            addGlassGradient(frame)
+            addAdvancedGlassGradient(frame)
             local c = Instance.new("UICorner")
             c.CornerRadius = GLASS_THEME.CornerRadius
             c.Parent = frame
@@ -665,7 +710,7 @@ function SmileUILib:CreateWindow(title, width, height)
             btn.TextSize = 14
             btn.TextTruncate = Enum.TextTruncate.AtEnd
             btn.Parent = frame
-            addGlassGradient(btn)
+            addAdvancedGlassGradient(btn)
             local bc = Instance.new("UICorner")
             bc.CornerRadius = GLASS_THEME.CornerRadius
             bc.Parent = btn
@@ -688,7 +733,8 @@ function SmileUILib:CreateWindow(title, width, height)
     end
     main.Size = UDim2.new(0, 0, 0, 0)
     main.BackgroundTransparency = 1
-    TweenService:Create(main, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    local openTi = TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    TweenService:Create(main, openTi, {
         Size = UDim2.new(0, width, 0, height),
         BackgroundTransparency = GLASS_THEME.GlassTransparency
     }):Play()
