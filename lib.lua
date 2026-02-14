@@ -15,7 +15,7 @@ local CoreGui = game:GetService("CoreGui")
 local GLASS_THEME = {
     Background = Color3.fromRGB(30, 30, 30), -- Base dark for glass
     GlassBackground = Color3.fromRGB(45, 45, 45), -- Semi-transparent glass
-    GlassTransparency = 0.5, -- Less transparent for more visibility
+    GlassTransparency = 0.4, -- Adjusted for better visibility with blur
     Header = Color3.fromRGB(35, 35, 35), -- Darker header
     Accent = Color3.fromRGB(0, 122, 255),
     AccentDark = Color3.fromRGB(0, 100, 200),
@@ -148,14 +148,14 @@ function SmileUILib:Notify(title, message, duration)
     local textHeight = content.TextBounds.Y
     local notifHeight = 36 + textHeight + 10
     notif.Size = UDim2.new(0, 400, 0, notifHeight)
-    local ti = TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out) -- Enhanced animation with Back easing
+    local ti = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out) -- Updated to Exponential for sharper animation
     TweenService:Create(notif, ti, {BackgroundTransparency = GLASS_THEME.GlassTransparency, Size = UDim2.new(0, 400, 0, notifHeight)}):Play() -- Animate size for pop-in
     TweenService:Create(header, ti, {BackgroundTransparency = GLASS_THEME.GlassTransparency}):Play()
     TweenService:Create(titleLbl, ti, {TextTransparency = 0}):Play()
     TweenService:Create(content, ti, {TextTransparency = 0}):Play()
     TweenService:Create(stroke, ti, {Transparency = GLASS_THEME.StrokeTransparency}):Play()
     task.delay(duration, function()
-        local out_ti = TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+        local out_ti = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
         TweenService:Create(notif, out_ti, {BackgroundTransparency = 1, Size = UDim2.new(0, 400, 0, 0)}):Play() -- Animate shrink out
         TweenService:Create(header, out_ti, {BackgroundTransparency = 1}):Play()
         TweenService:Create(titleLbl, out_ti, {TextTransparency = 1}):Play()
@@ -333,20 +333,22 @@ function SmileUILib:CreateWindow(title, width, height)
         end)
         tabBtn.MouseEnter:Connect(function()
             if activePage ~= page then
-                local enter_ti = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                local enter_ti = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
                 TweenService:Create(tabBtn, enter_ti, {
                     BackgroundTransparency = GLASS_THEME.GlassTransparency - 0.15,
                     Size = UDim2.new(1, -12, 0, 40) -- Slight grow
                 }):Play()
+                tabBtn.UIGradient.Rotation = tabBtn.UIGradient.Rotation + 10 -- Slight rotation for layered feel
             end
         end)
         tabBtn.MouseLeave:Connect(function()
             if activePage ~= page then
-                local leave_ti = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+                local leave_ti = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
                 TweenService:Create(tabBtn, leave_ti, {
                     BackgroundTransparency = GLASS_THEME.GlassTransparency,
                     Size = UDim2.new(1, -12, 0, 38) -- Shrink back
                 }):Play()
+                tabBtn.UIGradient.Rotation = tabBtn.UIGradient.Rotation - 10 -- Reset rotation
             end
         end)
         tabBtn.MouseButton1Click:Connect(function()
@@ -357,7 +359,7 @@ function SmileUILib:CreateWindow(title, width, height)
             activePage = page
             for _, b in tabs:GetChildren() do
                 if b:IsA("TextButton") then
-                    local click_ti = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                    local click_ti = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
                     TweenService:Create(b, click_ti, {
                         BackgroundColor3 = (b == tabBtn) and GLASS_THEME.AccentDarker or GLASS_THEME.AccentVeryDark,
                         TextColor3 = (b == tabBtn) and GLASS_THEME.Text or GLASS_THEME.TextDim,
@@ -455,7 +457,7 @@ function SmileUILib:CreateWindow(title, width, height)
             frame.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     default = not default
-                    local toggle_ti = TweenInfo.new(0.3, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out) -- Bounce for fun animation
+                    local toggle_ti = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out) -- Updated to Exponential
                     TweenService:Create(knob, toggle_ti, {Position = UDim2.new(default and 1 or 0, -24, 0, 0)}):Play()
                     TweenService:Create(track, toggle_ti, {BackgroundColor3 = default and GLASS_THEME.Accent or GLASS_THEME.AccentDarker}):Play()
                     if callback then callback(default) end
@@ -483,18 +485,20 @@ function SmileUILib:CreateWindow(title, width, height)
                 if callback then callback() end
             end)
             btn.MouseEnter:Connect(function()
-                local enter_ti = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                local enter_ti = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
                 TweenService:Create(btn, enter_ti, {
                     BackgroundTransparency = GLASS_THEME.GlassTransparency - 0.2,
                     Size = UDim2.new(1, -8, 0, 42) -- Grow on hover
                 }):Play()
+                btn.UIGradient.Rotation = btn.UIGradient.Rotation + 10 -- Slight rotation for layered feel
             end)
             btn.MouseLeave:Connect(function()
-                local leave_ti = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+                local leave_ti = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
                 TweenService:Create(btn, leave_ti, {
                     BackgroundTransparency = GLASS_THEME.GlassTransparency,
                     Size = UDim2.new(1, -8, 0, 40) -- Shrink back
                 }):Play()
+                btn.UIGradient.Rotation = btn.UIGradient.Rotation - 10 -- Reset rotation
             end)
             return btn
         end
@@ -652,12 +656,14 @@ function SmileUILib:CreateWindow(title, width, height)
                     if callback then callback(v) end
                 end)
                 optBtn.MouseEnter:Connect(function()
-                    local enter_ti = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                    local enter_ti = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
                     TweenService:Create(optBtn, enter_ti, {BackgroundTransparency = GLASS_THEME.GlassTransparency - 0.2}):Play()
+                    optBtn.UIGradient.Rotation = optBtn.UIGradient.Rotation + 10
                 end)
                 optBtn.MouseLeave:Connect(function()
-                    local leave_ti = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+                    local leave_ti = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
                     TweenService:Create(optBtn, leave_ti, {BackgroundTransparency = GLASS_THEME.GlassTransparency}):Play()
+                    optBtn.UIGradient.Rotation = optBtn.UIGradient.Rotation - 10
                 end)
             end
             dropLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -671,10 +677,10 @@ function SmileUILib:CreateWindow(title, width, height)
             selected.MouseButton1Click:Connect(function()
                 dropFrame.Visible = not dropFrame.Visible
                 if dropFrame.Visible then
-                    local open_ti = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                    local open_ti = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
                     TweenService:Create(dropFrame, open_ti, {BackgroundTransparency = GLASS_THEME.GlassTransparency}):Play()
                 else
-                    local close_ti = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+                    local close_ti = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
                     TweenService:Create(dropFrame, close_ti, {BackgroundTransparency = 1}):Play()
                 end
             end)
@@ -735,7 +741,7 @@ function SmileUILib:CreateWindow(title, width, height)
         return tabAPI
     end
     -- Animate window open with scale and transparency
-    local open_ti = TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    local open_ti = TweenInfo.new(0.8, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
     TweenService:Create(main, open_ti, {
         Size = UDim2.new(0, width, 0, height),
         Position = UDim2.new(0.5, -width/2, 0.5, -height/2),
